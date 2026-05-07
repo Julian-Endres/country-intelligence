@@ -68,7 +68,9 @@ Target audience: Recruiters in NGO/Impact/International Organizations sector.
 Stored in `.env` file (not committed). See `.env.example` for required variables.
 
 ## Current Status
-
+✅ World Bank GDP per capita loaded for 5 countries (test)
+✅ Environment variables setup with .env
+✅ Project pushed to GitHub
 ### ✅ Completed
 - WSL2 + Ubuntu setup
 - PostgreSQL installed and configured (TCP connections enabled)
