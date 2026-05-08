@@ -1,6 +1,5 @@
 import requests
 import psycopg2
-
 import os
 from dotenv import load_dotenv
 
@@ -21,25 +20,24 @@ url = "https://api.worldbank.org/v2/country/BOL;DEU;COL;KOR;GBR/indicator/NY.GDP
 response = requests.get(url)
 data = response.json()
 
-# Daten extrahieren und speichern
 for entry in data[1]:
     iso_code = entry['countryiso3code']
     gdp = entry['value']
     year = entry['date']
-    
+
     if iso_code and gdp:
         cur.execute("SELECT iso_numeric FROM countries WHERE iso_code_3 = %s", (iso_code,))
         result = cur.fetchone()
-        
+
         if result:
             iso_numeric = result[0]
             cur.execute("""
-                INSERT INTO indicators (iso_numeric, indicator_code, value, year)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (iso_numeric, indicator_code, year) DO NOTHING
-            """, (iso_numeric, 'NY.GDP.PCAP.CD', gdp, int(year)))
+                INSERT INTO indicators (iso_numeric, indicator_code, source_id, value, time_period, obs_status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING
+            """, (iso_numeric, 'NY.GDP.PCAP.CD', 1, gdp, str(year), 'A'))
             print(f"Gespeichert: {iso_code} - {gdp}")
-            
+
 conn.commit()
 cur.close()
 conn.close()
