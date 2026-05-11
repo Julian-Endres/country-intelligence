@@ -14,31 +14,55 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
-# World Bank API - BIP pro Kopf
-url = "https://api.worldbank.org/v2/country/BOL;DEU;COL;KOR;GBR/indicator/NY.GDP.PCAP.CD?format=json&mrv=1"
+# Indikatoren die wir laden wollen
+indicators = [
+    "NY.GDP.PCAP.CD",
+    "SP.DYN.LE00.IN",
+    "SP.POP.TOTL",
+    "SI.POV.GINI",
+    "SE.ADT.LITR.ZS"
+]
 
-response = requests.get(url)
-data = response.json()
+total_saved = 0
 
-for entry in data[1]:
-    iso_code = entry['countryiso3code']
-    gdp = entry['value']
-    year = entry['date']
+for indicator in indicators:
+    print(f"Lade {indicator}...")
+    page = 1
 
-    if iso_code and gdp:
-        cur.execute("SELECT iso_numeric FROM countries WHERE iso_code_3 = %s", (iso_code,))
-        result = cur.fetchone()
+    while True:
+        url = f"https://api.worldbank.org/v2/country/all/indicator/{indicator}?format=json&mrv=1&per_page=300&page={page}"
+        response = requests.get(url)
+        data = response.json()
 
-        if result:
-            iso_numeric = result[0]
-            cur.execute("""
-                INSERT INTO indicators (iso_numeric, indicator_code, source_id, value, time_period, obs_status)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING
-            """, (iso_numeric, 'NY.GDP.PCAP.CD', 1, gdp, str(year), 'A'))
-            print(f"Gespeichert: {iso_code} - {gdp}")
+        if len(data) < 2 or not data[1]:
+            break
 
-conn.commit()
+        for entry in data[1]:
+            iso_code = entry['countryiso3code']
+            value = entry['value']
+            year = entry['date']
+
+            if iso_code and value:
+                cur.execute("SELECT iso_numeric FROM countries WHERE iso_code_3 = %s", (iso_code,))
+                result = cur.fetchone()
+
+                if result:
+                    iso_numeric = result[0]
+                    cur.execute("""
+                        INSERT INTO indicators (iso_numeric, indicator_code, source_id, value, time_period, obs_status)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING
+                    """, (iso_numeric, f"WB:{indicator}", 1, value, str(year), 'A'))
+                    total_saved += 1
+
+        total_pages = data[0]['pages']
+        if page >= total_pages:
+            break
+        page += 1
+
+    conn.commit()
+    print(f"{indicator} fertig.")
+
 cur.close()
 conn.close()
-print("Fertig!")
+print(f"\nFertig! {total_saved} Datenpunkte gespeichert.")

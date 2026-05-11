@@ -47,3 +47,19 @@ SELECT im.indicator_code, im.name, im.unit, im.category, s.short_code AS source
 FROM indicator_metadata im
 JOIN sources s ON im.source_id = s.id
 ORDER BY im.category, im.name;
+
+-- =========================================
+-- COVERAGE VIEW
+-- =========================================
+
+CREATE VIEW v_country_coverage AS
+SELECT 
+    c.name,
+    c.region,
+    c.subregion,
+    COUNT(i.indicator_code) AS anzahl_indikatoren,
+    STRING_AGG(i.indicator_code, ', ') AS vorhandene_indikatoren
+FROM countries c
+LEFT JOIN indicators i ON c.iso_numeric = i.iso_numeric
+GROUP BY c.name, c.region, c.subregion
+ORDER BY anzahl_indikatoren DESC;
