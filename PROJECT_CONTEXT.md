@@ -2,7 +2,7 @@
 
 This document captures the full context of the project for AI assistants and future reference. Update regularly.
 
-Last updated: 2026-05-07
+Last updated: 2026-05-11
 
 ---
 
@@ -19,6 +19,7 @@ The project demonstrates:
 - End-to-end data pipeline thinking (API → Python → Database → Visualization)
 - Clean, scalable database architecture
 - International perspective and substantive content
+- Personal data search engine for international development data
 
 Target audience: Recruiters in NGO/Impact/International Organizations sector.
 
@@ -26,30 +27,34 @@ Target audience: Recruiters in NGO/Impact/International Organizations sector.
 
 ## Architecture Decisions
 
-### Database: PostgreSQL
-- Industry standard, scales well, fits future plans (PostGIS for geo data later)
-- Running locally on WSL2 Ubuntu
+### Database: PostgreSQL 18 (WSL2 Ubuntu)
 
-### Primary Key Strategy: ISO numeric for countries
-- Uses ISO 3166-1 numeric standard as primary key for `countries` table
-- Internationally standardized, never changes, compatible with World Bank, UN, WHO data
-- For other tables (sources, indicators), SERIAL is used since no external standard exists
+### Primary Key Strategy
+- `countries`: ISO 3166-1 numeric (iso_numeric) – internationally standardized, never changes
+- All other tables: SERIAL – no external standard exists
 
-### Schema: 4 core tables
-1. `countries` – stable country data (immutable facts only)
+### Schema: 4 core tables + indicator catalog
+1. `countries` – stable country data (immutable facts only), 249 countries
 2. `sources` – data sources catalog
-3. `indicator_metadata` – describes what each indicator means
-4. `indicators` – actual values (one row per country/indicator/year)
+3. `indicator_metadata` – describes what each indicator means (WB: prefix convention)
+4. `indicators` – actual values with source_id, time_period (text), obs_status (SDMX-inspired)
+5. `indicator_catalog` – all available indicators from all sources with coverage data
 
-### Design Principle
+### Indicator Code Convention
+Format: `SOURCE:ORIGINAL_CODE` (e.g. `WB:NY.GDP.PCAP.CD`)
+Never invent own codes – always keep original source codes.
+
+### Design Principles
 - Stable, immutable facts in `countries`
 - Anything multi-valued or time-dependent gets its own table
-- Future subdomain tables planned: transport, languages, religions, etc.
+- `obs_status`: A=actual, E=estimated, P=provisional, F=forecast
+- `time_period` as TEXT (not INT) to support quarterly/monthly data later
+- `source_id` in UNIQUE key of indicators – allows parallel storage of same indicator from multiple sources
 
 ### What was deliberately NOT built
 - No `regions` table – overengineering for 7 regions
-- No `update_log` table – overkill for solo project, `last_updated` field sufficient
-- No historical data yet – structure supports it, but only loading current year first
+- No `update_log` table – `last_updated` field sufficient
+- No historical data yet – structure supports it, only loading current year first
 
 ---
 
@@ -58,7 +63,7 @@ Target audience: Recruiters in NGO/Impact/International Organizations sector.
 - **OS:** Windows 11 + WSL2 Ubuntu
 - **Database:** PostgreSQL 18 (running in WSL)
 - **Language:** Python 3.14
-- **Key libraries:** psycopg2-binary, requests, pandas
+- **Key libraries:** psycopg2-binary, requests, pandas, python-dotenv, streamlit
 - **GUI:** DBeaver Community Edition
 - **IDE:** VS Code
 - **Hardware:** ThinkPad T490
@@ -67,82 +72,114 @@ Target audience: Recruiters in NGO/Impact/International Organizations sector.
 
 Stored in `.env` file (not committed). See `.env.example` for required variables.
 
+---
+
 ## Current Status
-✅ World Bank GDP per capita loaded for 5 countries (test)
-✅ Environment variables setup with .env
-✅ Project pushed to GitHub
+
 ### ✅ Completed
-- WSL2 + Ubuntu setup
-- PostgreSQL installed and configured (TCP connections enabled)
+- WSL2 + Ubuntu setup (including BIOS virtualization fix)
+- PostgreSQL 18 installed and configured (TCP connections enabled)
+- DBeaver connected via WSL2 bridge
 - Project structure with venv
-- 4 core tables created
-- 5 sources seeded
-- 5 indicator metadata entries seeded
+- 4 core tables + indicator_catalog created
+- Environment variables with .env (no passwords in code)
 - 249 countries loaded from RestCountries API
 - Region mapping completed (Africa: 59, Americas: 56, Europe: 52, Asia: 50, Oceania: 27, Antarctic: 5)
+- 5 World Bank indicators loaded for all 249 countries (654 data points)
+  - WB:NY.GDP.PCAP.CD – GDP per capita
+  - WB:SP.DYN.LE00.IN – Life expectancy
+  - WB:SP.POP.TOTL – Total population
+  - WB:SE.ADT.LITR.ZS – Literacy rate
+  - WB:SI.POV.GINI – Gini coefficient
+- World Bank Indicator Catalog: 1.486 indicators with categories and coverage data
+- Coverage analysis: latest_year + coverage_recent fields populated
+- Search tool (search.py) – keyword search across indicator catalog
+- Coverage check tool (check_coverage.py) – coverage analysis per indicator
+- Batch coverage script (batch_coverage.py) – bulk coverage update
+- Streamlit web app (app.py) – interactive indicator explorer with filters
+- Coverage view (v_country_coverage) in DBeaver
 - SQL scripts organized in numbered folders
-- README and PROJECT_CONTEXT documentation
+- Full documentation: README, PROJECT_CONTEXT, SOURCES_ROADMAP, SOURCES_ENCYCLOPEDIA
+- Project pushed to GitHub
 
 ### 🔄 In Progress
-- Understanding the architecture deeply before adding more
+- Batch coverage script ran – latest_year and coverage_recent being populated
 
 ### ⏳ Next Steps
-1. Load World Bank data into `indicators` table (GDP, life expectancy, population, literacy, Gini)
-2. Push project to GitHub
-3. First visualization (world map with one indicator)
-4. Add more indicators progressively
+1. First visualization – world map with GDP per capita (Plotly + Folium)
+2. WHO GHO integration (next major data source)
+3. Latinobarómetro (Latin America cultural data)
+4. OWID CSVs integration
+5. Autostart PostgreSQL in WSL (TODO)
 
 ### 📋 Backlog / Future
 - WHO health data
 - UNDP HDI data
-- V-Dem political data
+- V-Dem political data (500+ democracy indicators)
+- World Values Survey (cultural values)
+- CEPALSTAT (Latin America specific)
 - Country geometry (PostGIS)
-- Public transport / rail network data (OpenStreetMap, OpenRailwayMap)
-- Cultural data (Hofstede, World Values Survey)
-- Web scraping layer (Numbeo, Wikipedia)
+- Public transport / rail network (OSM, OpenRailwayMap, Mobility Database)
+- Cultural data (Hofstede, D-PLACE)
+- Web scraping layer (Numbeo, Hofstede)
 - Interactive dashboard (Plotly + Dash + Folium)
 
 ---
 
 ## Project Structure
+
 country-intelligence/
 ├── scripts/
-│   ├── load_countries.py
-│   └── world_bank.py
+│   ├── pipeline/
+│   │   ├── load_countries.py
+│   │   └── world_bank.py
+│   ├── catalog/
+│   │   ├── wb_catalog.py       # Load WB indicator catalog
+│   │   ├── search.py           # Terminal search tool
+│   │   ├── check_coverage.py   # Coverage check per indicator
+│   │   ├── batch_coverage.py   # Bulk coverage update
+│   │   └── app.py              # Streamlit web app
+│   └── analysis/
 ├── sql/
 │   ├── 01_setup/
-│   │   ├── 01_drop_tables.sql
-│   │   ├── 02_create_sources.sql
-│   │   ├── 03_create_countries.sql
-│   │   ├── 04_create_indicator_metadata.sql
-│   │   └── 05_create_indicators.sql
 │   ├── 02_seed/
-│   │   ├── 01_insert_sources.sql
-│   │   ├── 02_insert_indicator_metadata.sql
-│   │   └── 03_update_regions.sql
 │   └── 03_queries/
-│       └── exploration_queries.sql
+│       ├── exploration_queries.sql
+│       └── indicator_search.sql
+├── docs/
+│   ├── SOURCES_ROADMAP.md
+│   └── SOURCES_ENCYCLOPEDIA.md
+├── .env.example
 ├── venv/
 ├── README.md
 └── PROJECT_CONTEXT.md
+
 ---
 
 ## Lessons Learned & Gotchas
 
-- **WSL2 + PostgreSQL:** Need to enable `listen_addresses = '*'` in postgresql.conf and add line to pg_hba.conf for Windows ↔ WSL connection
-- **PostgreSQL doesn't auto-start in WSL:** Manual `sudo service postgresql start` needed after Windows restart (TODO: automate)
+- **WSL2 + PostgreSQL:** Enable `listen_addresses = '*'` in postgresql.conf + add line to pg_hba.conf
+- **PostgreSQL auto-start:** Manual `sudo service postgresql start` needed after Windows restart
 - **DBeaver UPDATE statements:** Need explicit COMMIT in some cases
-- **RestCountries API:** Limited to 10 fields per request – need to use ?fields= parameter explicitly
-- **Region data:** Not provided directly by RestCountries with limited fields, derived from subregion via UPDATE statements
+- **RestCountries API:** Limited to 10 fields per request – use ?fields= parameter
+- **Region data:** Derived from subregion via UPDATE statements (not in API with 10-field limit)
+- **World Bank API:** Returns aggregates (regions, income groups) mixed with real countries – filter via countries table join
+- **Indicator codes:** Always use `SOURCE:ORIGINAL_CODE` format (WB:NY.GDP.PCAP.CD) – never invent codes
+- **source_id in UNIQUE key:** Critical for multi-source aggregation (IMF + WB both have GDP data)
+- **time_period as TEXT:** Enables quarterly (2024-Q1) and monthly (2024-03) data later
+- **obs_status:** SDMX-inspired field – A=actual, E=estimated, P=provisional, F=forecast
 
 ---
 
-## Key Data Sources Documented
+## Key Data Sources
 
-| Source | Code | Status | URL |
-|--------|------|--------|-----|
-| World Bank | WB | Planned | data.worldbank.org |
-| WHO | WHO | Planned | who.int/data |
-| UNDP | UNDP | Planned | hdr.undp.org |
-| RestCountries | REST | ✅ Used | restcountries.com |
-| V-Dem | VDEM | Planned | v-dem.net |
+| Source | Code | Status | Indicators | URL |
+|--------|------|--------|------------|-----|
+| World Bank WDI | WB | ✅ Active | 1.486 in catalog, 5 loaded | data.worldbank.org |
+| RestCountries | REST | ✅ Active | Base country data | restcountries.com |
+| WHO GHO | WHO | ⏳ Planned | ~2.300 | who.int/data |
+| UNDP HDR | UNDP | ⏳ Planned | HDI, GII, MPI | hdr.undp.org |
+| V-Dem | VDEM | ⏳ Planned | 500+ democracy | v-dem.net |
+| Latinobarómetro | LATBAR | ⏳ Planned | Cultural values | latinobarometro.org |
+| World Values Survey | WVS | ⏳ Planned | Values since 1981 | worldvaluessurvey.org |
+| CEPALSTAT | CEPAL | ⏳ Planned | 1.000+ LAC | api-cepalstat.cepal.org |
