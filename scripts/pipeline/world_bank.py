@@ -16,11 +16,22 @@ cur = conn.cursor()
 
 # Indikatoren die wir laden wollen
 indicators = [
-    "NY.GDP.PCAP.CD",
-    "SP.DYN.LE00.IN",
-    "SP.POP.TOTL",
-    "SI.POV.GINI",
-    "SE.ADT.LITR.ZS"
+    # Urban/Rural
+    "SP.URB.TOTL",
+    "SP.URB.TOTL.IN.ZS",
+    "SP.URB.GROW",
+    "SP.RUR.TOTL",
+    "SP.RUR.TOTL.ZS",
+    "SP.RUR.TOTL.ZG",
+    # Altersstruktur
+    "SP.POP.0014.TO.ZS",
+    "SP.POP.1564.TO.ZS",
+    "SP.POP.65UP.TO.ZS",
+    "SP.POP.65UP.TO",
+    # Migration
+    "SM.POP.TOTL",
+    "SM.POP.TOTL.ZS",
+    "SM.POP.NETM",
 ]
 
 total_saved = 0
