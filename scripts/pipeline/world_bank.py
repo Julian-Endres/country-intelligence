@@ -16,22 +16,28 @@ cur = conn.cursor()
 
 # Indikatoren die wir laden wollen
 indicators = [
-    # Urban/Rural
-    "SP.URB.TOTL",
-    "SP.URB.TOTL.IN.ZS",
-    "SP.URB.GROW",
-    "SP.RUR.TOTL",
-    "SP.RUR.TOTL.ZS",
-    "SP.RUR.TOTL.ZG",
-    # Altersstruktur
-    "SP.POP.0014.TO.ZS",
-    "SP.POP.1564.TO.ZS",
-    "SP.POP.65UP.TO.ZS",
-    "SP.POP.65UP.TO",
-    # Migration
-    "SM.POP.TOTL",
-    "SM.POP.TOTL.ZS",
-    "SM.POP.NETM",
+    # Demographie Kern
+    "SP.POP.GROW",
+    "SP.POP.TOTL.FE.ZS",
+    "SP.DYN.TFRT.IN",
+    "SP.DYN.CBRT.IN",
+    "SP.DYN.CDRT.IN",
+    "SP.POP.DPND",
+    "EN.POP.DNST",
+    "SP.DYN.LE00.FE.IN",
+    "SP.DYN.LE00.MA.IN",
+    # Mortalität
+    "SP.DYN.IMRT.IN",
+    "SH.DYN.MORT",
+    "SH.STA.MMRT",
+    "SH.STA.SUIC.P5",
+    # Arbeit
+    "SL.UEM.TOTL.MA.ZS",
+    "SL.UEM.TOTL.FE.ZS",
+    "SL.TLF.CACT.ZS",
+    # Alkohol
+    "SH.ALC.PCAP.MA.LI",
+    "SH.ALC.PCAP.FE.LI",
 ]
 
 total_saved = 0
