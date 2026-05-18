@@ -16,4 +16,5 @@ Thumbs.db
 
 # Data (optional - depends on size)
 data/raw/
-*.csv
+*.csv*.html
+*:Zone.Identifier

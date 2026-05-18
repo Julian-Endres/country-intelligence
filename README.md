@@ -6,58 +6,100 @@ Started in Cochabamba, Bolivia, during a sabbatical in 2026.
 
 ## Project Goal
 
-Build a professional data pipeline that:
-- Connects to multiple international data sources (World Bank, WHO, UNDP, V-Dem, etc.)
-- Stores country information in a clean, scalable PostgreSQL database
-- Enables visualization of economic, cultural, geographic, and political dimensions per country
-- Serves as a portfolio piece demonstrating data engineering and analytical skills
+Build a professional data pipeline that answers questions like:
+- "Where is child mortality high?"
+- "Which regions of Bolivia are the poorest?"
+- "Where does Bolivia export its raw materials?"
+- "How have these things developed over the last years?"
+
+Not a dashboard that shows numbers. A system that answers questions.
+
+## Conceptual Framework
+
+The project is structured around the **Societal Intelligence Framework (SIF)** – 10 core domains that cover the full complexity of societies:
+
+1. Population & Demographics
+2. Geography & Environment
+3. Economy & Infrastructure
+4. Politics & Governance
+5. Culture & Identity
+6. Social Fabric & Daily Life
+7. Communication & Media
+8. Health, Body & Behavior
+9. History & Collective Memory
+10. International Relations & Global Integration
+
+Each indicator in the database is mapped to a domain and dimension from this framework.
 
 ## Architecture
 
-The database consists of four core tables:
+Five core tables:
 
-- **countries** – Stable country information (name, ISO codes, region, geography). Primary key: `iso_numeric` (ISO 3166-1 standard)
+- **countries** – Stable country information (name, ISO codes, region, geography). 249 countries. Primary key: `iso_numeric` (ISO 3166-1 standard)
 - **sources** – All data sources used in the project
-- **indicator_metadata** – Description of each indicator (name, unit, category, source)
-- **indicators** – Actual data values (one row per country, indicator, year)
+- **indicator_metadata** – Description of each indicator (name, unit, category, SIF domain/dimension)
+- **indicators** – Actual data values (one row per country, indicator, year). Long format, SDMX-inspired
+- **indicator_catalog** – All available indicators from all sources with coverage data (1.486 WB indicators)
 
 ## Tech Stack
 
-- **PostgreSQL 18** – Database
+- **PostgreSQL 18** – Database (WSL2 Ubuntu)
 - **Python 3.14** – Data pipeline scripts
-- **psycopg2** – Python ↔ PostgreSQL connection
-- **requests** – API calls
+- **psycopg2** – Python ↔ PostgreSQL
+- **requests / pandas** – API calls and data handling
+- **Streamlit** – Indicator Explorer web app
+- **Plotly** – Visualizations
 - **DBeaver** – Database GUI
-- **WSL2 (Ubuntu)** – Development environment on Windows
 
 ## Project Structure
+
+```
 country-intelligence/
-├── scripts/              # Python scripts for data loading
-│   ├── load_countries.py
-│   └── world_bank.py
-├── sql/                  # SQL scripts
-│   ├── 01_setup/         # Table creation
-│   ├── 02_seed/          # Initial data
-│   └── 03_queries/       # Exploration queries
-├── venv/                 # Python virtual environment (not in git)
-└── README.md
-## Setup Instructions
+├── scripts/
+│   ├── pipeline/        # Data loading scripts
+│   ├── catalog/         # Indicator catalog tools + Streamlit app
+│   └── analysis/        # Visualization scripts
+├── sql/
+│   ├── 01_setup/        # Table creation
+│   ├── 02_seed/         # Initial data + SIF mapping
+│   └── 03_queries/      # Exploration + data quality checks
+├── docs/
+│   ├── SOURCES_ROADMAP.md
+│   └── SOURCES_ENCYCLOPEDIA.md
+└── PROJECT_CONTEXT.md
+```
+
+## Current Data
+
+| Domain | Indicators | Period | Coverage |
+|--------|-----------|--------|----------|
+| Population & Demographics | 91 | 2000–2024 | 215 countries |
+| Health, Body & Behavior | 12 | 2000–2024 | 183–215 countries |
+| Economy & Infrastructure | 3 | 2000–2024 | 212–215 countries |
+
+**~500.000+ data points** across 215 countries, 2000–2024.
+
+## Setup
 
 1. Install PostgreSQL and create database `country_intelligence`
-2. Run all scripts in `sql/01_setup/` in order
-3. Run `sql/02_seed/01_insert_sources.sql`
-4. Run `sql/02_seed/02_insert_indicator_metadata.sql`
-5. Run `python3 scripts/load_countries.py` to load all countries
-6. Run `sql/02_seed/03_update_regions.sql` to enrich region data
+2. Run scripts in `sql/01_setup/` in order
+3. Run `sql/02_seed/` scripts in order
+4. Copy `.env.example` to `.env` and fill in credentials
+5. Run `python3 scripts/pipeline/load_countries.py`
+6. Run `python3 scripts/pipeline/load_demographics.py`
 
 ## Status
 
 - ✅ Database architecture
-- ✅ 249 countries loaded with base data
-- ✅ Sources and indicator metadata defined
-- 🔄 World Bank indicators (in progress)
-- ⏳ Visualization layer (planned)
-- ⏳ Web scraping integration (planned)
+- ✅ 249 countries loaded
+- ✅ 1.486 WB indicators in catalog
+- ✅ 91 demographic indicators loaded (2000–2024)
+- ✅ SIF domain/dimension mapping
+- ✅ Streamlit indicator explorer
+- ⏳ Economy & Infrastructure (next)
+- ⏳ WHO health data
+- ⏳ UN Comtrade (trade flows)
+- ⏳ Visualization layer
 
 ## Author
 
