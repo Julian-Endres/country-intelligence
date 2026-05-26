@@ -40,9 +40,10 @@ log = logging.getLogger(__name__)
 
 # ─── Konfiguration ───────────────────────────────────────────────────────────
 
-API_KEY = os.getenv("COMTRADE_KEY")
-BASE_URL = "https://comtradeapi.un.org/data/v1/get/C/A/HS"
-STATE_FILE = ".comtrade_state.json"
+API_KEY      = os.getenv("COMTRADE_KEY")
+BASE_URL     = "https://comtradeapi.un.org/data/v1/get/C/A/HS"
+STATE_FILE   = ".comtrade_state.json"
+PARTNER_CODES_URL = "https://comtradeapi.un.org/files/v1/app/reference/partnerAreas.json"
 
 # Tag 1: 2010-2024
 YEAR_BATCHES = [
@@ -58,6 +59,7 @@ YEAR_BATCHES = [
 # ]
 
 COUNTRIES_PER_BATCH = 5
+PARTNERS_PER_BATCH  = 50   # Höher = weniger Calls, aber größere Responses
 SLEEP_BETWEEN_CALLS = 2
 
 # ─── DB ──────────────────────────────────────────────────────────────────────
@@ -154,6 +156,24 @@ def api_call(params, retries=3):
             time.sleep(5)
     return []
 
+# ─── Partner Codes ───────────────────────────────────────────────────────────
+
+def load_partner_codes():
+    """
+    Lädt alle gültigen Partner-Codes von der Comtrade Referenz-API.
+    Filtert Aggregate (isGroup=true) raus – nur echte Länder.
+    """
+    log.info("Lade Partner-Codes von Referenz-API...")
+    r = requests.get(PARTNER_CODES_URL, timeout=30)
+    data = r.json().get("results", [])
+    codes = [
+        entry["PartnerCode"]
+        for entry in data
+        if not entry.get("isGroup", True) and entry.get("PartnerCode", 0) > 0
+    ]
+    log.info(f"Partner-Codes geladen: {len(codes)} echte Länder")
+    return codes
+
 # ─── Pipeline 1: Produktstruktur ─────────────────────────────────────────────
 
 def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
@@ -164,13 +184,13 @@ def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
 
     params = {
         "reporterCode": ",".join(str(r) for r in reporter_codes),
-        "period": ",".join(str(y) for y in range(year_start, year_end + 1)),
-        "partnerCode": 0,
-        "cmdCode": "AG4",
-        "flowCode": "X,M",
-        "maxRecords": 100000,
-        "format": "JSON",
-        "includeDesc": "False",
+        "period":       ",".join(str(y) for y in range(year_start, year_end + 1)),
+        "partnerCode":  0,
+        "cmdCode":      "AG4",
+        "flowCode":     "X,M",
+        "maxRecords":   100000,
+        "format":       "JSON",
+        "includeDesc":  "False",
     }
 
     rows = api_call(params)
@@ -181,16 +201,16 @@ def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
             continue
         year = row.get("period")
         flow = row.get("flowCode")
-        hs4 = row.get("cmdCode", "")
-        fob = row.get("primaryValue")
+        hs4  = row.get("cmdCode", "")
+        fob  = row.get("primaryValue")
         if not all([year, flow, hs4, fob is not None]):
             continue
         records.append((iso_numeric, year, flow, hs4, fob, row.get("qty"), row.get("netWgt")))
 
-    # Deduplizieren – API gibt manchmal doppelte Zeilen zurück
+    # Deduplizieren
     seen = {}
     for r in records:
-        key = (r[0], r[1], r[2], r[3])  # iso_numeric, year, flow, hs4
+        key = (r[0], r[1], r[2], r[3])
         seen[key] = r
     records = list(seen.values())
 
@@ -199,8 +219,8 @@ def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
             INSERT INTO trade_products (iso_numeric, year, flow_code, hs4_code, fob_value, qty, net_weight)
             VALUES %s
             ON CONFLICT (iso_numeric, year, flow_code, hs4_code) DO UPDATE
-            SET fob_value = EXCLUDED.fob_value,
-                qty = EXCLUDED.qty,
+            SET fob_value  = EXCLUDED.fob_value,
+                qty        = EXCLUDED.qty,
                 net_weight = EXCLUDED.net_weight,
                 last_updated = CURRENT_TIMESTAMP
         """, records)
@@ -211,54 +231,69 @@ def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
 
 # ─── Pipeline 2: Partnerstruktur ─────────────────────────────────────────────
 
-def run_pipeline2(cur, reporter_codes, iso_map, year_start, year_end, state):
+def run_pipeline2(cur, reporter_codes, iso_map, year_start, year_end, state, partner_codes):
+    """
+    Partnerstruktur: TOTAL Produkte, alle Partner aufgelöst.
+    Batcht Partner-Codes in Gruppen à PARTNERS_PER_BATCH.
+    """
     batch_key = f"p2_{','.join(map(str, reporter_codes))}_{year_start}_{year_end}"
     if batch_key in state["completed_batches_p2"]:
         log.info(f"    P2: bereits geladen, überspringe")
         return 0
 
-    params = {
-        "reporterCode": ",".join(str(r) for r in reporter_codes),
-        "period": ",".join(str(y) for y in range(year_start, year_end + 1)),
-        "partnerCode": "ALL",
-        "cmdCode": "TOTAL",
-        "flowCode": "X,M",
-        "maxRecords": 100000,
-        "format": "JSON",
-        "includeDesc": "True",
-    }
+    total_records = []
 
-    rows = api_call(params)
-    records = []
-    for row in rows:
-        iso_numeric = iso_map.get(row.get("reporterCode"))
-        if not iso_numeric:
-            continue
-        year = row.get("period")
-        flow = row.get("flowCode")
-        partner_code = row.get("partnerCode")
-        fob = row.get("primaryValue")
-        if not all([year, flow, partner_code is not None, fob is not None]):
-            continue
-        records.append((
-            iso_numeric, year, flow, partner_code,
-            row.get("partnerISO", ""), row.get("partnerDesc", ""), fob
-        ))
+    partner_batches = [
+        partner_codes[i:i + PARTNERS_PER_BATCH]
+        for i in range(0, len(partner_codes), PARTNERS_PER_BATCH)
+    ]
+
+    for partner_batch in partner_batches:
+        params = {
+            "reporterCode": ",".join(str(r) for r in reporter_codes),
+            "period":       ",".join(str(y) for y in range(year_start, year_end + 1)),
+            "partnerCode":  ",".join(str(p) for p in partner_batch),
+            "cmdCode":      "TOTAL",
+            "flowCode":     "X,M",
+            "maxRecords":   100000,
+            "format":       "JSON",
+            "includeDesc":  "True",
+        }
+
+        rows = api_call(params)
+
+        for row in rows:
+            iso_numeric  = iso_map.get(row.get("reporterCode"))
+            if not iso_numeric:
+                continue
+            year         = row.get("period")
+            flow         = row.get("flowCode")
+            partner_code = row.get("partnerCode")
+            fob          = row.get("primaryValue")
+            if not all([year, flow, partner_code is not None, fob is not None]):
+                continue
+            total_records.append((
+                iso_numeric, year, flow, partner_code,
+                row.get("partnerISO", ""), row.get("partnerDesc", ""), fob
+            ))
+
+        time.sleep(SLEEP_BETWEEN_CALLS)
 
     # Deduplizieren
-    seen2 = {}
-    for r in records:
+    seen = {}
+    for r in total_records:
         key = (r[0], r[1], r[2], r[3])
-        seen2[key] = r
-    records = list(seen2.values())
+        seen[key] = r
+    records = list(seen.values())
 
     if records:
         psycopg2.extras.execute_values(cur, """
-            INSERT INTO trade_partners (iso_numeric, year, flow_code, partner_code, partner_iso, partner_name, fob_value)
+            INSERT INTO trade_partners
+                (iso_numeric, year, flow_code, partner_code, partner_iso, partner_name, fob_value)
             VALUES %s
             ON CONFLICT (iso_numeric, year, flow_code, partner_code) DO UPDATE
-            SET fob_value = EXCLUDED.fob_value,
-                partner_iso = EXCLUDED.partner_iso,
+            SET fob_value    = EXCLUDED.fob_value,
+                partner_iso  = EXCLUDED.partner_iso,
                 partner_name = EXCLUDED.partner_name,
                 last_updated = CURRENT_TIMESTAMP
         """, records)
@@ -295,10 +330,12 @@ def main():
         except:
             continue
 
+    # Partner-Codes einmalig laden
+    partner_codes = load_partner_codes()
+
     batches = [reporter_list[i:i+COUNTRIES_PER_BATCH] for i in range(0, len(reporter_list), COUNTRIES_PER_BATCH)]
     total_batches = len(batches) * len(YEAR_BATCHES)
     log.info(f"{len(batches)} Länder-Batches × {len(YEAR_BATCHES)} Jahr-Batches = {total_batches} Runden")
-    log.info(f"Erwartete Calls: ~{total_batches * 2} (P1 + P2)")
 
     state = load_state()
     total_calls = state.get("total_calls", 0)
@@ -319,12 +356,14 @@ def main():
             time.sleep(SLEEP_BETWEEN_CALLS)
 
             # Pipeline 2
-            rows_p2 = run_pipeline2(cur, batch, iso_map, year_start, year_end, state)
+            rows_p2 = run_pipeline2(cur, batch, iso_map, year_start, year_end, state, partner_codes)
             conn.commit()
-            total_calls += 1
+            # P2 verbraucht mehrere Calls (partner_batches)
+            p2_calls = -(-len(partner_codes) // PARTNERS_PER_BATCH)  # ceiling division
+            total_calls += p2_calls
             state["total_calls"] = total_calls
             save_state(state)
-            log.info(f"    P2: {rows_p2} Zeilen gespeichert")
+            log.info(f"    P2: {rows_p2} Zeilen gespeichert ({p2_calls} Calls)")
             time.sleep(SLEEP_BETWEEN_CALLS)
 
             # Sicherheitsstopp
