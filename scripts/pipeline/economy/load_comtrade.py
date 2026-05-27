@@ -47,7 +47,6 @@ PARTNER_CODES_URL = "https://comtradeapi.un.org/files/v1/app/reference/partnerAr
 
 # Tag 1: 2010-2024
 YEAR_BATCHES = [
-    (2010, 2014),
     (2015, 2019),
     (2020, 2024),
 ]
