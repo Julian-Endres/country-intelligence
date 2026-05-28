@@ -11,7 +11,7 @@ Run
   source venv/bin/activate
   python scripts/pipeline/economy/load_ilostat.py
 
-Resume: safe to re-run — uses ON CONFLICT DO NOTHING.
+Resume: safe to re-run — uses ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING.
 """
 
 import os
@@ -230,6 +230,7 @@ def to_db_rows(filtered: list[dict], indicator_code: str, country_map: dict) -> 
             continue
         value = float(row["obs_value"])
         obs_status = str(row.get("obs_status") or "A")[:10]
+        SOURCE_ID = 59
         db_rows.append((iso_numeric, indicator_code, SOURCE_ID, year, value, obs_status))
 
     if skipped:
@@ -237,8 +238,6 @@ def to_db_rows(filtered: list[dict], indicator_code: str, country_map: dict) -> 
     return db_rows
 
 # ─── Insert ───────────────────────────────────────────────────────────────────
-
-SOURCE_ID = 59  # ILO in sources table
 
 INSERT_SQL = """
     INSERT INTO indicators (iso_numeric, indicator_code, source_id, time_period, value, obs_status)
