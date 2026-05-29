@@ -1,0 +1,113 @@
+"""
+load_un_voting_1_core.py — UN Voting: Core Indicators
+======================================================
+Etappe 1: yes/no/abstain/nonvote share + n_votes
+Run: python3 scripts/pipeline/international/load_un_voting_1_core.py
+"""
+
+import psycopg2
+import os
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+
+VOTING_FILE = "data/raw/Manuell_27-05/2026_02_06_ga_voting.csv"
+
+conn = psycopg2.connect(
+    host=os.getenv("DB_HOST"), database=os.getenv("DB_NAME"),
+    user=os.getenv("DB_USER"), password=os.getenv("DB_PASSWORD"),
+    port=os.getenv("DB_PORT")
+)
+cur = conn.cursor()
+
+cur.execute("SELECT id FROM sources WHERE short_code = 'UNVOTE'")
+row = cur.fetchone()
+if not row:
+    cur.execute("""
+        INSERT INTO sources (short_code, name, url, description)
+        VALUES ('UNVOTE', 'UN General Assembly Voting Data',
+                'https://digitallibrary.un.org/',
+                'UN General Assembly vote records by country and resolution, 1946-2025.')
+        RETURNING id
+    """)
+    source_id = cur.fetchone()[0]
+else:
+    source_id = row[0]
+
+for code, name, unit in [
+    ('UNVOTE:yes_share',     'UN GA: Share of Yes votes (%)',    '%'),
+    ('UNVOTE:no_share',      'UN GA: Share of No votes (%)',     '%'),
+    ('UNVOTE:abstain_share', 'UN GA: Share of Abstentions (%)', '%'),
+    ('UNVOTE:nonvote_share', 'UN GA: Share of Non-voting (%)',  '%'),
+    ('UNVOTE:n_votes',       'UN GA: Total votes cast',         'count'),
+]:
+    cur.execute("""
+        INSERT INTO indicator_metadata
+            (indicator_code, name, source_id, domain, category, dimension, unit)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (indicator_code) DO NOTHING
+    """, (code, name, source_id,
+          'International Relations & Global Integration',
+          'Diplomatic Alignment', 'UN Voting', unit))
+
+conn.commit()
+print("Metadata geladen.")
+
+cur.execute("SELECT iso_numeric, iso_code_3 FROM countries WHERE iso_code_3 IS NOT NULL")
+iso3_to_numeric = {row[1].upper(): row[0] for row in cur.fetchall()}
+
+print("Lade CSV...")
+df = pd.read_csv(VOTING_FILE, usecols=['ms_code', 'ms_vote', 'date'], low_memory=False)
+print(f"  {len(df):,} Zeilen")
+
+df['year'] = pd.to_datetime(df['date'], errors='coerce').dt.year
+df = df.dropna(subset=['year', 'ms_code', 'ms_vote'])
+df['year'] = df['year'].astype(int)
+
+vote_map = {'Y': 'yes', 'N': 'no', 'A': 'abstain', 'X': 'nonvote'}
+df['vote_clean'] = df['ms_vote'].map(vote_map)
+df = df[df['vote_clean'].notna()]
+
+total_saved = 0
+groups = list(df.groupby(['ms_code', 'year']))
+print(f"  {len(groups):,} Länder-Jahr Kombinationen")
+
+for i, ((ms_code, year), grp) in enumerate(groups):
+    if i % 2000 == 0 and i > 0:
+        conn.commit()
+        print(f"  {i:,}/{len(groups):,} | {total_saved:,} gespeichert")
+
+    iso_numeric = iso3_to_numeric.get(str(ms_code).upper())
+    if not iso_numeric:
+        continue
+
+    n = len(grp)
+    if n < 3:
+        continue
+
+    yes_s     = float(round((grp['vote_clean'] == 'yes').sum()     / n * 100, 2))
+    no_s      = float(round((grp['vote_clean'] == 'no').sum()      / n * 100, 2))
+    abstain_s = float(round((grp['vote_clean'] == 'abstain').sum() / n * 100, 2))
+    nonvote_s = float(round((grp['vote_clean'] == 'nonvote').sum() / n * 100, 2))
+
+    for code, value in [
+        ('UNVOTE:yes_share',     yes_s),
+        ('UNVOTE:no_share',      no_s),
+        ('UNVOTE:abstain_share', abstain_s),
+        ('UNVOTE:nonvote_share', nonvote_s),
+        ('UNVOTE:n_votes',       float(n)),
+    ]:
+        cur.execute("""
+            INSERT INTO indicators
+                (iso_numeric, indicator_code, source_id, value, time_period, obs_status)
+            VALUES (%s, %s, %s, %s, %s, 'A')
+            ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING
+        """, (iso_numeric, code, source_id, value, str(year)))
+        if cur.rowcount > 0:
+            total_saved += 1
+
+conn.commit()
+cur.close()
+conn.close()
+print(f"\nFertig! {total_saved:,} rows gespeichert.")
