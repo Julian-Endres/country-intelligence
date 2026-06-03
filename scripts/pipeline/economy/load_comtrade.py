@@ -14,7 +14,7 @@ Setup:
     2. Script nach scripts/pipeline/load_comtrade.py kopieren
     3. python3 scripts/pipeline/load_comtrade.py
 
-Tag 1: YEAR_BATCHES = [(2010,2014), (2015,2019), (2020,2024)]
+Tag 1: YEAR_BATCHES = [(2020,2024)]
 Tag 2: YEAR_BATCHES = [(2000,2004), (2005,2009)]
 """
 
@@ -47,7 +47,7 @@ PARTNER_CODES_URL = "https://comtradeapi.un.org/files/v1/app/reference/partnerAr
 
 # Tag 1: 2010-2024
 YEAR_BATCHES = [
-    (2005, 2009),
+    (2020, 2025),
 ]
 
 # Tag 2: ersetze mit:
@@ -73,7 +73,7 @@ def get_connection():
 
 def setup_tables(cur):
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS trade_products (
+        CREATE TABLE IF NOT EXISTS trade.trade_products (
             id SERIAL PRIMARY KEY,
             iso_numeric CHAR(3) REFERENCES countries(iso_numeric),
             year INT NOT NULL,
@@ -87,7 +87,7 @@ def setup_tables(cur):
         )
     """)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS trade_partners (
+        CREATE TABLE IF NOT EXISTS trade.trade_partners (
             id SERIAL PRIMARY KEY,
             iso_numeric CHAR(3) REFERENCES countries(iso_numeric),
             year INT NOT NULL,
@@ -100,8 +100,8 @@ def setup_tables(cur):
             UNIQUE(iso_numeric, year, flow_code, partner_code)
         )
     """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tp_iso_year ON trade_products(iso_numeric, year)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tpar_iso_year ON trade_partners(iso_numeric, year)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tp_iso_year ON trade.trade_products(iso_numeric, year)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tpar_iso_year ON trade.trade_partners(iso_numeric, year)")
     log.info("Tabellen erstellt/geprüft.")
 
 def get_all_countries(cur):
@@ -214,7 +214,7 @@ def run_pipeline1(cur, reporter_codes, iso_map, year_start, year_end, state):
 
     if records:
         psycopg2.extras.execute_values(cur, """
-            INSERT INTO trade_products (iso_numeric, year, flow_code, hs4_code, fob_value, qty, net_weight)
+            INSERT INTO trade.trade_products (iso_numeric, year, flow_code, hs4_code, fob_value, qty, net_weight)
             VALUES %s
             ON CONFLICT (iso_numeric, year, flow_code, hs4_code) DO UPDATE
             SET fob_value  = EXCLUDED.fob_value,
@@ -286,7 +286,7 @@ def run_pipeline2(cur, reporter_codes, iso_map, year_start, year_end, state, par
 
     if records:
         psycopg2.extras.execute_values(cur, """
-            INSERT INTO trade_partners
+            INSERT INTO trade.trade_partners
                 (iso_numeric, year, flow_code, partner_code, partner_iso, partner_name, fob_value)
             VALUES %s
             ON CONFLICT (iso_numeric, year, flow_code, partner_code) DO UPDATE

@@ -1,8 +1,9 @@
 # Country Intelligence Layer — Datenquellen-Enzyklopädie
 
-> Lebende Referenz für alle verfügbaren Datenquellen.  
-> Nicht als To-Do-Liste, sondern als Nachschlagewerk.  
-> Letzte Aktualisierung: 2026-05
+> Lebende Referenz für alle verfügbaren Datenquellen weltweit.
+> Nicht als To-Do-Liste, sondern als Nachschlagewerk.
+> Was bereits integriert ist, steht in `SOURCES_ROADMAP.md` (aktuell 50 Quellen, ~9M Datenpunkte).
+> Letzte Aktualisierung: 2026-06-03
 
 ---
 
@@ -342,6 +343,16 @@ df = pd.read_csv("dplace-data/datasets/EA/data.csv")
 ```
 
 **Gotcha:** Beschreibt vorindustrielle Gesellschaften — aggregieren nötig.
+
+### eHRAF World Cultures (Yale HRAF)
+
+Ergänzt D-PLACE um **qualitative ethnografische Volltexte** statt nur kodierter Variablen:
+- **URL:** `ehrafworldcultures.yale.edu` — Web-Export, institutionelle Lizenz nötig
+- **Inhalt:** Ethnografische Texte zu ~360 Kulturen, durchsuchbar über den **OCM-Index** (Outline of Cultural Materials)
+- **Schlüssel-OCM-Codes:** 545 (Rituals), 788 (Religious Practices), 580 (Marriage), 590 (Familial Relations)
+- **Parallel:** `ehrafarchaeology.yale.edu` für archäologische Kulturen
+- **Stärke:** Tiefe qualitative Beschreibungen — gut für narrative Synthese-Layer, nicht für KPIs
+- **Gotcha:** Lizenzpflichtig (Universitätszugang); kein freier Bulk-Download
 
 ### UNESCO Heritage Stack
 
