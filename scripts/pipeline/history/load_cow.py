@@ -101,15 +101,15 @@ def main():
         source_id = setup_source_and_metadata(cur)
         conn.commit()
 
-        # Ländercodes laden
-        cur.execute("SELECT iso_numeric, iso_code_3 FROM countries")
-        iso3_map = {row[1]: row[0] for row in cur.fetchall()}
+        # Zentrale COW → iso_numeric Map aus countries.cow_code
+        cur.execute("SELECT cow_code, iso_numeric FROM countries WHERE cow_code IS NOT NULL")
+        cow_to_iso_map = {row[0]: row[1] for row in cur.fetchall()}
+
 
         def ccode_to_iso_numeric(ccode):
-            iso3 = COW_TO_ISO3.get(int(ccode))
-            if iso3:
-                return iso3_map.get(iso3)
-            return None
+            if pd.isna(ccode):
+                return None
+            return cow_to_iso_map.get(int(ccode))
 
         total_saved = 0
 

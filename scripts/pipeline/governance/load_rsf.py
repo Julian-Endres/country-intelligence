@@ -42,7 +42,14 @@ def main():
             INSERT INTO indicator_metadata (indicator_code, name, unit, source_id, category)
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (indicator_code) DO NOTHING
-        """, ('RSF:press_freedom', 'Press Freedom Index', 'score 0-100', source_id, 'Communication & Media'))
+        """, ('RSF:press_freedom', 'Press Freedom Index', 'score 0-100', source_id, 'State Capacity & Institutions'))
+
+        cur.execute("""
+            UPDATE indicator_metadata
+            SET category = 'State Capacity & Institutions',
+                dimension = 'Press Freedom'
+            WHERE indicator_code = 'RSF:press_freedom'
+        """)
         conn.commit()
 
         # Ländercodes

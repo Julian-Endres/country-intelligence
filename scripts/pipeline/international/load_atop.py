@@ -77,13 +77,14 @@ for code, name, unit in [
 conn.commit()
 print("Metadata geladen.")
 
-# COW → ISO numeric mapping
-cur.execute("SELECT iso_numeric FROM countries WHERE iso_numeric IS NOT NULL")
-all_iso = {row[0] for row in cur.fetchall()}
+# COW → ISO numeric mapping (zentral aus countries.cow_code)
+cur.execute("SELECT cow_code, iso_numeric FROM countries WHERE cow_code IS NOT NULL")
+cow_to_iso_map = {row[0]: row[1] for row in cur.fetchall()}
 
 def cow_to_iso(ccode):
-    padded = str(int(ccode)).zfill(3)
-    return padded if padded in all_iso else None
+    if pd.isna(ccode):
+        return None
+    return cow_to_iso_map.get(int(ccode))
 
 # Load
 print(f"Lade {ATOP_FILE}...")
