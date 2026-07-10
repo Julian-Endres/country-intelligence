@@ -646,6 +646,124 @@ GHSL + Google Open Buildings.
 
 ---
 
+## 12. Kommunikation & Medien (schwächste Domain — Ergänzungen)
+
+Diese Domain ist im Projekt aktuell am dünnsten (nach v2-Restructure teilweise in Infrastructure/Politics aufgegangen, aber die Medienlandschaft selbst fehlt fast komplett). Folgende Quellen wurden recherchiert, aber noch nicht integriert:
+
+| Quelle | Inhalt | Format/Zugang | Aufwand |
+|---|---|---|---|
+| **GDELT** | Medienereignisse, Themen, Sentiment, 15-Min-Intervalle | CSV/API, kostenlos, sehr große Datenmenge | Hoch |
+| **Reuters Digital News Report** | Vertrauen/Nutzung von Nachrichtenmedien, 40+ Länder | PDF, jährlich | Mittel |
+| **ITU DataHub** | ICT-Zugang (Internet, Mobilfunk, Breitband, Cybersecurity) | API/CSV, kostenlos, jährlich | Mittel |
+| **Google Trends** (`pytrends`) | Relatives Suchinteresse nach Land/Zeit | inoffizielle Python-Lib, kostenlos | Mittel |
+| **RSF Media Ownership Monitor (MOM)** | Medienkonzentration, Eigentümerstrukturen, 30+ Länder | Web/PDF, qualitativ | Hoch (Scraping) |
+| **CMPF Media Pluralism Monitor** | EU + Kandidatenländer, Medienpluralismus-Indikatoren | Excel, jährlich | Mittel |
+| **CPJ (Committee to Protect Journalists)** | Inhaftierte/getötete/vermisste Journalisten, weltweit | Datenbank, kostenlos | Niedrig |
+| **Freedom House — Freedom on the Net** | Internetfreiheit, 72 Länder (89% aller Internetnutzer) | Excel, jährlich | Niedrig |
+| **DataReportal** | Digital-/Social-Media-Nutzung pro Land | Web/Reports, kostenlos | Mittel |
+| **WAN-IFRA World Press Trends** | Zeitungsauflagen, Reichweite (Survey-basiert, 66 Länder) | Kostenpflichtig für Nicht-Mitglieder | — |
+| **StatCounter** | Browser/OS/Plattform-Marktanteile | Free Web-Interface | Niedrig |
+| **data.ai / Similarweb Free Tier** | App-/Web-Traffic-Schätzungen | Freemium, seit Sensor-Tower-Übernahme 2024 in Transition — Verfügbarkeit vor Nutzung prüfen | — |
+| **Oxford Internet Institute (OxIS)** | Computational-Propaganda-/Desinformationsforschung | PDF-Reports, qualitativ | — |
+
+**Empfehlung für Ersteinstieg:** Reuters DNR + ITU DataHub + Freedom on the Net + CPJ decken die größte Lücke mit vertretbarem Aufwand ab. GDELT und RSF MOM sind mächtig, aber deutlich aufwändiger (Scraping bzw. Rohdatenmenge) — nur bei konkretem Bedarf.
+
+---
+
+## 13. Politik, Eliten & Geschichte — Ergänzungen
+
+Einige dieser Quellen sind bereits geladen (WID, MARPOR, COLDAT, CCP, Polity5) — hier stehen die vollständigen Profile, die in der bisherigen Kurzfassung fehlten, plus bislang ungenutzte Quellen.
+
+| Quelle | Owner | Inhalt | Zugang | Coverage |
+|---|---|---|---|---|
+| **WID.world API** (bereits geladen) | World Inequality Lab (Piketty et al.) | Pre-/Post-Tax-Einkommens- und Vermögensanteile nach Perzentil | JSON-API / Bulk-CSV (`wid-bulk-downloader`) | ~190 Länder, viele Serien ab 1980 |
+| **WIID (World Income Inequality DB)** | UNU-WIDER | Gini, Dezil-Anteile, P90/P10-Ratio | Excel/Stata | 201 Länder, 26.000+ Datenpunkte |
+| **ParlGov** | Döring & Manow, Uni Bremen | ~1.700 Parteien, 1.000 Wahlen, 1.600 Kabinette; Links-Rechts-Scores, Koalitionszusammensetzung | CSV/XLSX/SQLite | 37 EU/OECD-Demokratien, 1900–2023 |
+| **V-Party (V-Dem)** | V-Dem Institute | 3.467 Parteien, 178 Länder; Populismus, Institutionalisierung, Personalisierung | CSV/Stata (DOI 10.23696/vpartydsv2) | 1970–2019 |
+| **MARPOR / Manifesto Project** (bereits geladen) | WZB Berlin | Wahlprogramm-Textanalyse, 56 Policy-Kategorien + RILE-Index | CSV/Stata, freie Registrierung | 5.300+ Wahlen |
+| **CCP — Comparative Constitutions Project** (bereits geladen, relational) | Elkins/Ginsburg | Alle Verfassungsereignisse seit 1789 + inhaltliche Charakteristika | ZIP (Stata/CSV) | Alle unabhängigen Staaten, 1789–2025 |
+| **COLDAT** (bereits geladen, relational) | Uni Bremen | Kolonialstart/-ende, Kolonisator-Identität | Harvard Dataverse (CSV, CC0) | Alle je kolonisierten Länder, 1462–2019 |
+| **Clio-Infra** | IISH (van Zanden et al.) | 50+ historische Serien: BIP/Kopf, Reallöhne, Lebenserwartung, Bildung — bis 500 Jahre zurück | XLSX pro Indikator | Global, dünn vor 1850 |
+| **LobbyFacts + EU Transparency Register** | EU/Corporate Europe Observatory | Lobbyausgaben, Interessenvertretung auf EU-Ebene | JSON-API + XML/CSV, tägliches Update | EU-fokussiert |
+| **Archigos** | Goemans et al. | Regierungschefs/Staatsoberhäupter 1875–2015: Amtsantritt/-ende, Geschlecht, Todesursache | Stata/CSV | 3.000+ Fälle, letzte Version 2015 |
+| **Seshat Global History Databank** | Seshat-Projekt | Gesellschaftliche Komplexität, politische/ökonomische Institutionen von der Antike bis heute | CSV (Zenodo, CC BY-NC) | Unregelmäßige Abdeckung, hoher Aufwand |
+| **Paths to Power (PtP)** | Harvard Dataverse | Biographien von 44.789 Kabinettsmitgliedern, 141 Länder | CSV (DOI 10.7910/DVN/TP42YG) | 1966–2021 |
+
+**Einordnung:** WID und MARPOR sind schon aktiv genutzt — die Tabelle oben liefert die fehlenden vollständigen Profile für die Notion-Dokumentation. Von den neuen Quellen ist **ParlGov** der stärkste Kandidat für die Party-System-Lücke in Politics (siehe 🚧-Punkt "Parteiensystem & Wahlergebnisse"), allerdings nur EU/OECD — deckt Bolivien nicht ab. Für Bolivien bleibt WhoGov/Wikidata der bessere Weg (siehe Notion).
+
+---
+
+## 14. Soziales Gefüge & Werte — Ergänzungen
+
+| Quelle | Owner | Inhalt | Zugang | Coverage |
+|---|---|---|---|---|
+| **ESS (European Social Survey)** | ESS ERIC | Soziales Vertrauen, Normen, Politikbeteiligung, Lebenszufriedenheit | CSV/SPSS, freie Registrierung | Europa, zweijährlich |
+| **GESIS Eurobarometer Data Service** | GESIS / EU-Kommission | Meinungsforschung EU seit 1970, u.a. Kultur, Mediennutzung, Religion | SPSS/Stata/SAS + Codebücher, freie Registrierung | EU-Mitglieds-/Kandidatenländer, ~2×/Jahr |
+| **CAF World Giving Index / World Giving Report** (bereits geladen) | Charities Aid Foundation | Spendenbereitschaft, Freiwilligenarbeit, Hilfe für Fremde | PDF-Tabellen (kein CSV/API) | 142 Länder, 2009–heute |
+| **ARDA — Association of Religion Data Archives** | Indiana University | 1.400+ Dateien zu Religionszugehörigkeit, -freiheit, Umfragen | SPSS/Stata/CSV pro Datei | 232 Nationen (international) |
+| **Pew Religious Composition** (bereits geladen als PEW_REL) | Pew Research Center | Religionszugehörigkeit nach Land, 2010/2020 + Projektionen bis 2050 | Excel + Codebuch | 201 Länder/Territorien |
+| **Pew Global Restrictions on Religion (GRI/SHI)** | Pew Research Center | Staatliche Restriktionen vs. gesellschaftliche Feindseligkeit gegenüber Religion | Excel | 198 Länder |
+| **Gallup World Poll** | Gallup | Größte konsistente globale Werte-/Wohlbefinden-Befragung | Kostenpflichtig (Mikrodaten), Headlines teils frei | ~160 Länder |
+| **UNHCR Global Public API** | UNHCR | Flüchtlings-/Vertriebenenzahlen (ergänzt bereits geladene UNHCR-Daten) | REST-API, kostenlos | Global |
+
+**Caveat, wichtig für spätere Interpretation:** Regionale Barometer (Latinobarómetro, LAPOP, Eurobarometer, ESS) sind untereinander **nicht direkt vergleichbar** — unterschiedliche Wellen, Fragebögen, Erhebungsjahre. Für Cross-Region-Vergleiche vorsichtig sein.
+
+---
+
+## 15. Kultur — Sprache, Identität, Sport — Ergänzungen
+
+| Quelle | Owner | Inhalt | Zugang | Coverage |
+|---|---|---|---|---|
+| **Glottolog** (bereits geladen) | MPI Evolutionary Anthropology | Glottocodes, Sprachfamilien, Geo-Zuordnung, 460k+ bibliografische Referenzen | CLDF (Zenodo/GitHub), `pyglottolog` | Alle bekannten Sprachen weltweit |
+| **PHOIBLE** | Moran & McCloy (MPI) | Phonologische Inventare für 2.186 Sprachen, verknüpft mit Glottocodes | CSV/CLDF | Über Glottolog länderzuordenbar |
+| **WALS (World Atlas of Language Structures)** | MPI EVA Leipzig | ~200 strukturelle Sprachmerkmale für ~2.600 Sprachen | CLDF/CSV | Weltweit |
+| **Equaldex** | Equaldex (Crowdsourced) | LGBTQ-Rechte: Legal Index (16 Politikfelder) + Public Opinion Index | JSON-API, kostenlos | Weltweit, Zeitreihen |
+| **TasteAtlas** | TasteAtlas | Nationalgerichte, Esskultur (textuell) | Inoffizielle JSON | Weltweit |
+| **Joshua Project** | US-Missionsforschung | 16.405 Volksgruppen, 238 Länder — Bevölkerung, Religion, Sprache, Christen-/Evangelikalen-Anteil | v1/v2-API (Key erforderlich), Excel-Bulk | 238 Länder |
+| **FIFA World Rankings** (Community-Archive) | FIFA (Daten), Community (Zugang) | Monatliches Männer-Ranking seit 1992, ~210 Nationalteams | GitHub-Scraper / Kaggle-CSV (kein offizielles FIFA-API) | ~210 Nationalteams |
+| **OpenAlex** | OurResearch | Wissenschaftliche Publikationen, Autoren, Institutionen nach Land — Proxy für Forschungsoutput | REST-API, kostenlos | Weltweit |
+| **OpenCorporates** | OpenCorporates | Unternehmensregister-Daten, Eigentümerstrukturen | API (Teil kostenpflichtig) | Weltweit, uneinheitliche Tiefe |
+
+**Hinweis zur Datenqualität:** TasteAtlas, Equaldex und Wikidata sind nutzergeneriert — für ein Portfolio-Projekt nutzbar, aber immer als "Crowdsourced" kennzeichnen, nicht als offizielle Statistik.
+
+---
+
+## 16. Öffentlicher Verkehr — Europa-Spezifika (Ergänzung zu Abschnitt 4)
+
+Die bestehende Drei-Quellen-Strategie (OSM Overpass + Wikidata + OpenRailwayMap) bleibt die globale Basis. Für Europa/Nordamerika gibt es zusätzlich hochwertige nationale/regionale Quellen:
+
+| Kategorie | Quelle | Abdeckung | Format | Lizenz |
+|---|---|---|---|---|
+| Schienennetz | **NARN — North American Rail Network** (BTS NTAD) | USA/Kanada, Stand 2016 (Update 2026 geplant) | Shapefile/GeoJSON | Public Domain (US) |
+| Bahnhofsdaten | **DB StaDa-API** | Deutschland | JSON-API | ODbL (DB OpenData) |
+| Echtzeitdaten | **DB SIRI/TRIAS-API** | Deutschland, live | API | ODbL |
+| Fahrplan/Netz | **SNCF OpenData / transport.data.gouv.fr** | Frankreich (TER/Intercités/TGV, 151 Tage im Voraus) | GTFS, NeTEx, GTFS-RT/SIRI | ODbL-ähnlich |
+| Fahrplan/Netz | **opentransportdata.swiss** | Schweiz, gesamtes ÖV-Netz | GTFS (ZIP) | ODbL |
+| Fahrgastzahlen | **UIC Railway Statistics** | Global, Bahn-Betreiber | PDF/Excel | Copyright (UIC), teils Mitgliedschaft nötig |
+| Fahrgastzahlen | **Eurostat (ENV-TRANSPORT / rail_\*-Tabellen)** | EU, Personenkilometer nach Schiene | SDMX/CSV | CC-BY (EU) |
+
+Für Bolivien bleibt die im Hauptdokument (Abschnitt 4) bereits erfasste Faktenbasis (FCA/FCO, Mi Teleférico, Tren Bioceánico) die relevante Quelle — die Europa-Spezifika oben sind primär für spätere Ländervergleiche mit europäischen Referenzländern (z.B. Deutschland als zweiter Anker-Country neben Bolivien) interessant.
+
+---
+
+## 17. Spezial: Archive & schwer zugängliche Quellen
+
+Diese Quellen sind bewusst nicht in den regulären Rollout eingeplant — hoher Beschaffungsaufwand, aber potenziell einzigartige Tiefe für ein späteres Data-Storytelling-Stück:
+
+| Quelle | Inhalt | Zugangsbeschaffung |
+|---|---|---|
+| **National Archives / FOIA** | Diplomaten-/Geheimdienstberichte (z.B. CIA Reading Room) | FOIA-Anfrage oder Archivbesuch |
+| **Chronicling America (Library of Congress)** | Historische US-Zeitungen, OCR-Volltext, 1789–1963 | Öffentliche API / Bulk-Download, kostenlos |
+| **ProQuest Historical Newspapers** | Weltweite historische Zeitungsarchive, 19./20. Jh. | Uni-Bibliothek/Fachdatenbank-Abo |
+| **Global Terrorism Database (GTD)** | Terrorismusereignisse weltweit, 1970–2019 | Download via ICPSR/UMD, kostenlos |
+| **Medieninstitute (Edelman, Reuters Institute)** | Langfristige Vertrauens-/Meinungsforschungs-Barometer über das Web hinaus | Direkter Kontakt / Forschungskooperation |
+
+**Realistische Einschätzung:** Diese Kategorie lohnt sich nur, wenn ein konkretes Story-Stück (z.B. für die geplante Bolivien-Publikation im August) einen archivarischen Beleg braucht — nicht für die reguläre Indikator-Pipeline.
+
+---
+
+*Dieser Block ergänzt die bestehende SOURCES_ENCYCLOPEDIA.md (Stand 2026-06-03) um Quellen aus Research_Report.md, Neue_Datenquellen.pdf und ÖNPV_Datenquelle.md, die dort noch nicht erfasst waren. Abgeglichen und ergänzt: 2026-07-10.*
+
 ## Anhang: Wichtige Python-Pakete
 
 ```bash
