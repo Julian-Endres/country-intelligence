@@ -24,3 +24,4 @@ data/raw/
 *:Zone.Identifier
 *.bak
 backups/
+scripts/agent/output/
