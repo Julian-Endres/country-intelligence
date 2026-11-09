@@ -64,19 +64,30 @@ A) Vorschlags-SQL, Datei metadata.sql:
    - description: 1-3 Sätze auf Englisch, was der Indikator misst und wie die Skala zu lesen ist (hoch = ?).
      Inhalt nur aus dem Quellenmaterial, nichts erfinden. Einfache Anführungszeichen im Text verdoppeln ('').
    - Nach jeweils höchstens 5 Indikatoren mit append=true anhängen.
-B) Explainer, Datei explainer.md, auf Deutsch, verständlich für jemanden, der den Datensatz
-   noch nicht kennt. Gliederung (Vorlage aus Julians Notion):
-   - Was misst er wirklich? (Konzept, nicht nur Name)
-   - So liest du die Daten (Skalen, was hoch/niedrig bedeutet, Fallstricke beim Vergleichen)
-   - Originalquelle vs. Aggregator?
-   - Coverage (Länder/Jahre, per sql_query belegt)
-   - Verteilung (Ausreißer, Extremwerte, Muster, per sql_query belegt)
-   - 3 Länder im Detail (BOL, DEU + ein überraschendes Land, mit echten Werten)
-   - Stärken & Schwächen / methodische Fallstricke
-   - Verbindungen zu anderen Datensätzen in der DB
-   - Bewertungs-Richtung (hoch = gut / schlecht / neutral)
-   - Leitindikator? Warum?
-   - SQL-Rezept (2-3 Abfragen, die du in diesem Lauf tatsächlich ausgeführt hast)
+B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
+   Zweck: Julian will die Quelle als Ganzes verstehen und sich nach und nach bis zu den Rohdaten vorarbeiten.
+   Er sammelt damit Wissen über viele internationale Datenquellen. Schreibe für einen klugen Leser,
+   der die Quelle noch nicht kennt: Deutsch, klar, Fachbegriffe beim ersten Auftreten kurz erklären.
+   Gründlich, aber lesbar. KEINE Zeilen- oder Seitenangaben im Text, KEINE Angaben über Julians Datenbank
+   (Coverage, Lücken, Fehler gehören in befunde.md). Gliederung, genau diese Überschriften:
+   1. Auf einen Blick (3-4 Sätze: was, wer, wofür)
+   2. Wer steckt dahinter (Institution, seit wann, Finanzierung, wer nutzt die Daten)
+   3. Wofür die Quelle nützlich ist und wofür nicht (typische Fragen, Grenzen)
+   4. So entstehen die Daten (Methodik in einfachen Worten, Schritt für Schritt)
+   5. So ist der Datensatz aufgebaut (Ebenen, Variablentypen, Namenslogik der Variablen, Versionen und Updates)
+   6. So liest du die Werte (Skalen, Richtung, Unsicherheit, Fallstricke beim Vergleichen)
+   7. Die wichtigsten Variablen (5-10 Steckbriefe: was sie misst, wie man sie liest, wann man sie nimmt,
+      womit man sie nicht verwechseln sollte)
+   8. So nutzt du das Codebook (Aufbau, wo was steht, wie man eine Variable nachschlägt)
+   9. Kritik und Grenzen (was die Quelle selbst einräumt; Außenkritik nur mit Namensnennung "laut ...";
+      wenn du nichts Belastbares findest, schreib das, statt etwas zu erfinden)
+   10. Verwandte Quellen (welche ähnlichen Datensätze es gibt und wie sie sich unterscheiden; per sql_query in
+       der Tabelle sources nachsehen, welche davon Julian schon hat, und das kurz erwähnen)
+   11. Nächster Schritt: Rohdaten (wie die offizielle Datei aussieht, wie man sich einen kleinen Ausschnitt anschaut)
+   12. Weiterlesen (offizielle Links)
+   Dazu Datei leitfaden_belege.md: pro Abschnitt die Fundstellen (Dokument + Seite/Zeile oder URL), damit jede
+   Aussage prüfbar bleibt. Für Abschnitte 2, 3 und 9 offizielle Seiten der Quelle mit WebFetch lesen
+   (About, Methodik, FAQ), Dokumente ggf. mit download_file holen.
 C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören
    (falsche Einheiten, Lücken, Widersprüche zu Notion-Angaben usw.), jeweils mit Beleg.
 
@@ -90,10 +101,10 @@ REGELN
 
 
 async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
-    builtin = ["WebSearch"]
+    builtin = ["WebSearch", "WebFetch"]
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
-        tools=builtin,                                   # einziges eingebautes Werkzeug: Websuche
+        tools=builtin,                                   # eingebaut nur: Websuche und Webseiten lesen
         mcp_servers={"ci": T.build_server(T.ALL_TOOLS)},
         strict_mcp_config=True,
         allowed_tools=builtin + T.tool_names(T.ALL_TOOLS),
