@@ -16,11 +16,15 @@ Voraussetzung in .env (Repo-Wurzel):
   DB_AGENT_PASSWORD=...
 
 Aufruf aus der Repo-Wurzel:
-  python3 scripts/agent/wb_descriptions.py
+  python3 scripts/agent/helpers/wb_descriptions.py
+
+Ergebnis: Lauf-Ordner scripts/agent/output/<datum>_wb_beschreibungen/metadata.sql
 """
 
 import os
 import sys
+
+sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[1]))  # damit lib/ gefunden wird
 import time
 from datetime import datetime
 from pathlib import Path
@@ -29,11 +33,12 @@ import psycopg2
 import requests
 from dotenv import load_dotenv
 
+from lib import checks, runs
+
 load_dotenv()
 
 API_URL = "https://api.worldbank.org/v2/indicator/{code}?format=json"
 PREFIX = "WB:"
-OUTPUT_DIR = Path(__file__).parent / "output"
 
 
 def get_readonly_connection():
@@ -112,9 +117,8 @@ def main():
             print(f"  ✓ {db_code}")
         time.sleep(0.3)  # API schonen
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M")
-    out_file = OUTPUT_DIR / f"wb_descriptions_{stamp}.sql"
+    run_dir = runs.new_run("wb", "beschreibungen", auftrag="WB-Beschreibungen aus der Weltbank-API (sourceNote)")
+    out_file = run_dir / "metadata.sql"
 
     lines = [
         f"-- WB-Beschreibungen aus der Weltbank-API (sourceNote)",
@@ -128,7 +132,8 @@ def main():
     ]
 
     for db_code, db_name, api_name, note, url in found:
-        lines.append(f"-- {db_code} | DB-Name: {comment_safe(db_name)}")
+        lines.append(f"-- {db_code}")
+        lines.append(f"-- DB-Name: {comment_safe(db_name)}")
         if api_name and api_name != db_name:
             lines.append(f"-- ACHTUNG Name weicht ab. API-Name: {comment_safe(api_name)}")
         lines.append(f"-- Quelle: {url}")
@@ -150,6 +155,9 @@ def main():
     out_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nGefunden: {len(found)}, manuell klären: {len(missing)}")
     print(f"SQL-Datei: {out_file}")
+    for r in checks.run_check(run_dir):
+        c = r["anzahl"]
+        print(f"Auto-Prüfung: ✅ {c['OK']} sauber · ⚠️ {c['ANSEHEN']} ansehen · ❌ {c['FEHLER']} fehlerhaft ({run_dir / 'pruefung.md'})")
 
 
 if __name__ == "__main__":

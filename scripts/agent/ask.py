@@ -8,14 +8,12 @@ Was passiert:
   - Claude bekommt GENAU ein Werkzeug: sql_query (read-only).
   - Alle eingebauten Claude-Code-Werkzeuge (Bash, Dateien lesen/schreiben,
     Web) sind abgeschaltet.
-  - Jede Abfrage wird live angezeigt und am Ende mit der Antwort in
-    scripts/agent/output/ask_<zeit>.md gespeichert (Beleg).
+  - Jede Abfrage wird live angezeigt und am Ende mit der Antwort im
+    Lauf-Ordner scripts/agent/output/<datum>_ask_<thema>/protokoll.md gespeichert (Beleg).
 """
 
 import asyncio
 import sys
-from datetime import datetime
-from pathlib import Path
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -26,9 +24,8 @@ from claude_agent_sdk import (
     query,
 )
 
-from tools import QUERY_LOG, SQL_TOOL_NAME, build_server
-
-OUTPUT_DIR = Path(__file__).parent / "output"
+from lib import runs
+from lib.tools import QUERY_LOG, SQL_TOOL_NAME, build_server
 
 SYSTEM_PROMPT = """Du bist der Datenassistent für Julians Projekt "Country Intelligence":
 eine PostgreSQL-Datenbank mit Länderdaten aus vielen internationalen Quellen.
@@ -83,8 +80,8 @@ async def main(question: str) -> None:
     print(answer)
     print(f"\n({stats}, Abfragen: {len(QUERY_LOG)})")
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    out = OUTPUT_DIR / f"ask_{datetime.now():%Y%m%d_%H%M%S}.md"
+    run_dir = runs.new_run("ask", " ".join(question.split()[:5]), auftrag=question, status="erledigt")
+    out = run_dir / "protokoll.md"
     lines = [f"# Frage\n\n{question}\n", f"# Antwort\n\n{answer}\n", f"# Abfragen ({len(QUERY_LOG)})\n"]
     for i, q in enumerate(QUERY_LOG, 1):
         info = q.get("error") and f"FEHLER: {q['error']}" or f"{q.get('rows', 0)} Zeilen" + (" (abgeschnitten)" if q.get("truncated") else "")
