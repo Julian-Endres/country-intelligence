@@ -13,15 +13,18 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
-
-# Data (optional - depends on size)
-data/raw/
-*.csv*.html
 *:Zone.Identifier
 
-# Raw data files - too large for git
+# Daten (zu groß für git)
 data/raw/
-*:Zone.Identifier
+*.csv
+*.html
+
+# Backups, Lauf-Ausgaben, Logs
 *.bak
 backups/
 scripts/agent/output/
+logs/
+
+# Lade-Zustand der Loader
+.comtrade_state*.json
