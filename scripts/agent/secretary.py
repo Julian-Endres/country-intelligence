@@ -27,6 +27,7 @@ from claude_agent_sdk import (
 )
 
 from lib import checks, runs
+from lib.selfcheck import self_check
 from lib import tools as T
 
 SYSTEM_PROMPT = """Du bist der Sekretär für Julians Projekt "Country Intelligence", eine PostgreSQL-Datenbank
@@ -98,6 +99,9 @@ A) Vorschlags-SQL, Datei metadata.sql (Metadaten v3). Bestehende Werte dürfen e
    - keywords: 3-8 Suchbegriffe, Deutsch und Englisch gemischt.
    - Fällt auf, dass ein Indikator laut Quelle überholt oder ersetzt ist: in befunde.md, nicht im SQL.
    - Nach jeweils höchstens 5 Indikatoren mit append=true anhängen.
+   - VOR DEM ABSCHLUSS: self_check auf metadata.sql ausführen. FEHLER beheben und die Datei mit
+     replace_output ersetzen (nie eine zweite SQL-Datei anlegen), dann erneut self_check. ANSEHEN-Hinweise
+     beheben, wo möglich; was bleibt, in der Zusammenfassung kurz begründen.
 B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    Zweck: Julian will die Quelle als Ganzes verstehen und sich nach und nach bis zu den Rohdaten vorarbeiten.
    Er sammelt damit Wissen über viele internationale Datenquellen. Schreibe für einen klugen Leser,
@@ -122,9 +126,17 @@ B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    Dazu Datei leitfaden_belege.md: pro Abschnitt die Fundstellen (Dokument + Seite/Zeile oder URL), damit jede
    Aussage prüfbar bleibt. Für Abschnitte 2, 3 und 9 offizielle Seiten der Quelle mit WebFetch lesen
    (About, Methodik, FAQ), Dokumente ggf. mit download_file holen.
-C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören, vor allem Datenprobleme
-   (echte Werte außerhalb der Skala, Werte, die nicht zur Original-Datei passen, Lücken, Widersprüche).
-   Jeweils mit Beleg. Bekannte Fälle stehen in der Tabelle known_issues (per sql_query lesen)
+C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören, vor allem Datenprobleme.
+   PFLICHT bei jeder Quelle: Länder-Stichprobe. Ländercodes sind die häufigste Fehlerquelle im Projekt
+   (Hofstede: Werte hingen am falschen Land). Vergleiche für 5 Länder (Bolivien '068', Deutschland '276',
+   USA '840' und zwei weitere aus verschiedenen Regionen) die Werte eines Indikators in der DB mit der
+   Originaldatei bzw. API der Quelle (mit download_file/read_text). Ergebnis als kleine Tabelle
+   (Land, DB-Wert, Originalwert, passt?). Achte auch auf: Länder in der Quelle, die in der DB fehlen
+   (z. B. Kosovo, das in countries keinen Eintrag hat), Werte bei Kleinstterritorien, die die Quelle gar
+   nicht abdeckt, und historische Staaten (Westdeutschland, Jugoslawien, UdSSR, Nord-/Südjemen).
+   Rohdateien zuerst lokal suchen (find_files, data/raw); ist keine Originalfassung erreichbar,
+   das ausdrücklich schreiben statt zu schätzen.
+   Weitere Befunde: echte Werte außerhalb der Skala, Lücken, Widersprüche. Jeweils mit Beleg. Bekannte Fälle stehen in der Tabelle known_issues (per sql_query lesen)
    und werden nicht erneut gemeldet.
 
 REGELN
@@ -136,14 +148,17 @@ REGELN
 """
 
 
+AGENT_TOOLS = T.ALL_TOOLS + [self_check]
+
+
 async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
     builtin = ["WebSearch", "WebFetch"]
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
         tools=builtin,                                   # eingebaut nur: Websuche und Webseiten lesen
-        mcp_servers={"ci": T.build_server(T.ALL_TOOLS)},
+        mcp_servers={"ci": T.build_server(AGENT_TOOLS)},
         strict_mcp_config=True,
-        allowed_tools=builtin + T.tool_names(T.ALL_TOOLS),
+        allowed_tools=builtin + T.tool_names(AGENT_TOOLS),
         permission_mode="dontAsk",
         setting_sources=[],
         max_turns=max_turns,

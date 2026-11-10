@@ -7,6 +7,7 @@ Ordnern möglich:
   - data/raw/reference/     Referenzmaterial (Codebooks usw.), von Git ignoriert
 """
 
+import itertools
 import json
 import os
 import re
@@ -241,13 +242,19 @@ async def pdf_to_text(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def _ref_file(name: str) -> Path | None:
-    p = REF_DIR / Path(name).name
+    """Datei im Referenzordner (nur Name) oder voller Pfad aus find_files innerhalb der Suchordner."""
+    given = Path(name).expanduser()
+    if given.is_absolute():
+        if given.is_file() and any(_inside(given, root) for root in SEARCH_ROOTS):
+            return given
+        return None
+    p = REF_DIR / given.name
     return p if p.exists() else None
 
 
 @tool(
     "search_text",
-    "Durchsucht eine Textdatei im Referenzordner nach einem Begriff oder regulären Ausdruck "
+    "Durchsucht eine Textdatei (Name im Referenzordner oder voller Pfad aus find_files) nach einem Begriff oder regulären Ausdruck "
     "(ohne Groß-/Kleinschreibung). Gibt bis zu 25 Treffer mit Zeilennummer, Seite und etwas Kontext zurück.",
     {"filename": str, "pattern": str},
 )
@@ -259,26 +266,27 @@ async def search_text(args: dict[str, Any]) -> dict[str, Any]:
         rx = re.compile(args["pattern"], re.IGNORECASE)
     except re.error as e:
         return _text(f"FEHLER im Suchmuster: {e}")
-    lines = p.read_text(encoding="utf-8").splitlines()
     page, hits = 0, []
-    for i, line in enumerate(lines, start=1):
-        m = re.match(r"=== Seite (\d+) ===", line)
-        if m:
-            page = int(m.group(1))
-            continue
-        if rx.search(line):
-            ctx = " ⏎ ".join(l.strip() for l in lines[i - 1:i + 2] if l.strip())
-            hits.append(f"Zeile {i} (S. {page}): {ctx[:300]}")
-            if len(hits) >= MAX_SEARCH_HITS:
-                hits.append("(weitere Treffer abgeschnitten, Suchmuster präzisieren)")
-                break
+    with open(p, encoding="utf-8", errors="replace") as fh:
+        for i, raw in enumerate(fh, start=1):
+            line = raw.rstrip("\n")
+            m = re.match(r"=== Seite (\d+) ===", line)
+            if m:
+                page = int(m.group(1))
+                continue
+            if rx.search(line):
+                hits.append(f"Zeile {i} (S. {page}): {line.strip()[:300]}")
+                if len(hits) >= MAX_SEARCH_HITS:
+                    hits.append("(weitere Treffer abgeschnitten, Suchmuster präzisieren)")
+                    break
     _log(f"search_text {p.name} '{args['pattern']}': {len(hits)} Treffer")
     return _text("\n".join(hits) if hits else "Keine Treffer.")
 
 
 @tool(
     "read_text",
-    "Liest einen Ausschnitt (höchstens 150 Zeilen) aus einer Textdatei im Referenzordner, ab start_line.",
+    "Liest einen Ausschnitt (höchstens 150 Zeilen) aus einer Textdatei (Name im Referenzordner oder "
+    "voller Pfad aus find_files), ab start_line. Auch für große CSV-Dateien geeignet.",
     {"filename": str, "start_line": int, "num_lines": int},
 )
 async def read_text(args: dict[str, Any]) -> dict[str, Any]:
@@ -287,15 +295,16 @@ async def read_text(args: dict[str, Any]) -> dict[str, Any]:
         return _text("FEHLER: Datei nicht im Referenzordner.")
     start = max(1, int(args["start_line"]))
     n = min(MAX_READ_LINES, max(1, int(args["num_lines"])))
-    lines = p.read_text(encoding="utf-8").splitlines()
-    chunk = lines[start - 1:start - 1 + n]
+    with open(p, encoding="utf-8", errors="replace") as fh:
+        chunk = [l.rstrip("\n") for l in itertools.islice(fh, start - 1, start - 1 + n)]
     _log(f"read_text {p.name} Zeilen {start}-{start + len(chunk) - 1}")
     return _text("\n".join(f"{start + k}: {l}" for k, l in enumerate(chunk)) or "Ende der Datei.")
 
 
 # ---------------------------------------------------------------- Ergebnisse schreiben
 
-RESERVED_NAMES = {"protokoll.md", "pruefung.md", "status.json"}
+RESERVED_NAMES = {"protokoll.md", "pruefung.md", "pruefung.json", "status.json", "review.json",
+                  "uebertragung.md", "rueckgaengig.sql"}
 
 
 @tool(
@@ -326,9 +335,32 @@ async def write_output(args: dict[str, Any]) -> dict[str, Any]:
     return _text(f"Geschrieben: {target}")
 
 
+@tool(
+    "replace_output",
+    "Ersetzt eine eigene Ergebnisdatei (.md oder .sql) im Lauf-Ordner komplett durch neuen Inhalt. "
+    "Für Korrekturen nach self_check: lieber die Datei ersetzen als eine zweite Fassung anlegen.",
+    {"filename": str, "content": str},
+)
+async def replace_output(args: dict[str, Any]) -> dict[str, Any]:
+    if RUN_DIR is None:
+        return _text("FEHLER: Kein Lauf-Ordner gesetzt.")
+    name = Path(args["filename"]).name
+    if Path(name).suffix.lower() not in {".md", ".sql"}:
+        return _text("FEHLER: Nur .md oder .sql erlaubt.")
+    if name.lower() in RESERVED_NAMES:
+        return _text(f"FEHLER: {name} ist reserviert und wird automatisch erstellt.")
+    target = RUN_DIR / name
+    if not target.exists():
+        return _text(f"FEHLER: {name} gibt es noch nicht. Mit write_output anlegen.")
+    target.write_text(args["content"], encoding="utf-8")
+    _log(f"replace_output ersetzt: {name}")
+    return _text(f"Ersetzt: {target}")
+
+
 # ---------------------------------------------------------------- Server
 
-ALL_TOOLS = [sql_query, find_files, download_file, pdf_to_text, search_text, read_text, write_output]
+ALL_TOOLS = [sql_query, find_files, download_file, pdf_to_text, search_text, read_text, write_output,
+             replace_output]
 
 
 def build_server(tools=None):

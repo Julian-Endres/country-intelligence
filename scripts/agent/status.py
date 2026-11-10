@@ -8,6 +8,8 @@ Aufruf aus der Repo-Wurzel (venv aktiv):
   python3 scripts/agent/status.py <lauf> --erledigt "Notiz"
                                            Lauf ohne SQL (z. B. Leitfaden) abschließen,
                                            wenn das Ergebnis in Notion übernommen ist
+  python3 scripts/agent/status.py <lauf> --verwerfen "Grund"
+                                           Lauf ablegen, ohne etwas zu übertragen
 """
 
 import json
@@ -83,6 +85,17 @@ def mark_done(arg: str, notiz: str) -> None:
     print(f"{run_dir.name}: erledigt ({notiz})")
 
 
+def discard(arg: str, notiz: str) -> None:
+    run_dir = runs.resolve_run(arg)
+    st = runs.read_status(run_dir)
+    if st is None:
+        sys.exit("Kein Lauf-Ordner (keine status.json).")
+    if st.get("status") in DONE:
+        sys.exit(f"Lauf ist schon „{st['status']}“.")
+    runs.set_status(run_dir, "verworfen", notiz)
+    print(f"{run_dir.name}: verworfen ({notiz})")
+
+
 def detail(arg: str) -> None:
     run_dir = runs.resolve_run(arg)
     st = runs.read_status(run_dir) or {}
@@ -106,5 +119,7 @@ if __name__ == "__main__":
         detail(args[0])
     elif len(args) == 3 and args[1] == "--erledigt" and args[2].strip():
         mark_done(args[0], args[2].strip())
+    elif len(args) == 3 and args[1] == "--verwerfen" and args[2].strip():
+        discard(args[0], args[2].strip())
     else:
         sys.exit(__doc__)
