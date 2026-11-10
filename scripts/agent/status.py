@@ -5,6 +5,9 @@ Aufruf aus der Repo-Wurzel (venv aktiv):
   python3 scripts/agent/status.py          offene Läufe (noch nicht übertragen/erledigt/verworfen)
   python3 scripts/agent/status.py --alle   alle Läufe
   python3 scripts/agent/status.py <lauf>   Verlauf eines Laufs
+  python3 scripts/agent/status.py <lauf> --erledigt "Notiz"
+                                           Lauf ohne SQL (z. B. Leitfaden) abschließen,
+                                           wenn das Ergebnis in Notion übernommen ist
 """
 
 import json
@@ -18,6 +21,16 @@ NEXT = {
     "geprüft": "review.py",
     "freigegeben": "apply.py",
 }
+
+
+def next_step(run_dir, s: str) -> str:
+    has_sql = any(run_dir.glob("*.sql"))
+    if not has_sql and s in ("neu", "geprüft"):
+        if (run_dir / "leitfaden.md").exists():
+            return "Leitfaden prüfen, nach Notion, dann --erledigt"
+        return "nichts zu prüfen, mit --erledigt abschließen"
+    nxt = NEXT.get(s)
+    return f"python3 scripts/agent/{nxt} {run_dir.name}" if nxt else ""
 
 
 def counts(run_dir) -> str:
@@ -41,17 +54,33 @@ def overview(show_all: bool) -> None:
     for d in sorted(runs.OUTPUT_ROOT.iterdir()):
         if not d.is_dir():
             continue
-        st = runs.read_status(d) or {}
+        st = runs.read_status(d)
+        if st is None:
+            rows.append((d.name, "–", "", "kein Lauf-Ordner (keine status.json)"))
+            continue
         s = st.get("status", "?")
         if show_all or s not in DONE:
-            rows.append((d.name, s, counts(d), NEXT.get(s, "")))
+            rows.append((d.name, s, counts(d), next_step(d, s)))
     if not rows:
         print("Keine offenen Läufe. (--alle zeigt alle)")
         return
     w = max(len(r[0]) for r in rows)
     print(f"{'Lauf':<{w}}  {'Status':<12} {'Zahlen':<26} Nächster Schritt")
     for name, s, c, nxt in rows:
-        print(f"{name:<{w}}  {s:<12} {c:<26} {('python3 scripts/agent/' + nxt + ' ' + name[:15]) if nxt else ''}")
+        print(f"{name:<{w}}  {s:<12} {c:<26} {nxt}")
+
+
+def mark_done(arg: str, notiz: str) -> None:
+    run_dir = runs.resolve_run(arg)
+    st = runs.read_status(run_dir)
+    if st is None:
+        sys.exit("Kein Lauf-Ordner (keine status.json).")
+    if any(run_dir.glob("*.sql")):
+        sys.exit("Lauf enthält SQL-Vorschläge. Die laufen über review.py und apply.py, nicht über --erledigt.")
+    if st.get("status") in DONE:
+        sys.exit(f"Lauf ist schon „{st['status']}“.")
+    runs.set_status(run_dir, "erledigt", notiz)
+    print(f"{run_dir.name}: erledigt ({notiz})")
 
 
 def detail(arg: str) -> None:
@@ -75,5 +104,7 @@ if __name__ == "__main__":
         overview(True)
     elif len(args) == 1:
         detail(args[0])
+    elif len(args) == 3 and args[1] == "--erledigt" and args[2].strip():
+        mark_done(args[0], args[2].strip())
     else:
         sys.exit(__doc__)
