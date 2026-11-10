@@ -23,6 +23,11 @@ def escape_tags(line: str) -> str:
     return TAG_LIKE.sub(r"\\<", line)
 
 
+def toggle_title(title: str) -> str:
+    """Nummer am Anfang maskieren, sonst liest Notion "1. Titel" als Listenpunkt (leere Überschrift)."""
+    return re.sub(r"^(\d+)\.", r"\1\\.", escape_tags(title))
+
+
 def convert(md: str) -> tuple[str, str]:
     title, intro, sections = "", [], []
     current = None
@@ -46,7 +51,7 @@ def convert(md: str) -> tuple[str, str]:
         out += [intro_text, ""]
     for sec in sections:
         body = "\n".join(sec["body"]).strip()
-        out.append(f'<toggle heading="h2">{escape_tags(sec["title"])}')
+        out.append(f'<toggle heading="h2">{toggle_title(sec["title"])}')
         if body:
             out += ["", body]
         out += ["</toggle>", ""]
