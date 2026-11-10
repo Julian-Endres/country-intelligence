@@ -27,8 +27,12 @@ BELEG_LINE = re.compile(
     r"^Beleg:\s*(?P<file>[^,]+?),\s*S\.\s*(?P<page>\d+),\s*Zeile\s*(?P<lines>[\d\s/,\-–]+?):\s*"
     r"[\"“„](?P<quote>.+)[\"”“]\s*$")
 SICHER_LINE = re.compile(r"^Sicherheit:\s*(HOCH|MITTEL|UNSICHER)\b(.*)$", re.IGNORECASE)
+PAGE_MARK = re.compile(r"^=== Seite (\d+) ===\s*$")
 QUELLE_LINE = re.compile(r"^Quelle:\s*(https?://\S+)")
 GUARD = "(descriptionisnullortrim(description)='')"
+
+# Spalten, die ein Vorschlag setzen darf (apply.py überträgt nur diese)
+ALLOWED_COLUMNS = ("name", "unit", "description")
 
 
 def _norm(s: str) -> str:
@@ -47,6 +51,16 @@ class RefText:
             self.offsets.append(pos)
             pos += len(n)
         self.full = "".join(self.norm)
+        # Seite je Zeile aus den Markern "=== Seite N ===" (pdf_to_text)
+        self.page, cur = [], None
+        for l in self.lines:
+            m = PAGE_MARK.match(l)
+            if m:
+                cur = int(m.group(1))
+            self.page.append(cur)
+
+    def page_of(self, line: int) -> int | None:
+        return self.page[line - 1] if 1 <= line <= len(self.page) else None
 
     def window(self, lo: int, hi: int) -> str:
         lo, hi = max(1, lo), min(len(self.lines), hi)
@@ -95,6 +109,10 @@ def check_beleg(comments: list[str], ref_cache: dict) -> tuple[str, list[str], d
         else:
             status = _merge(status, FAIL)
             notes.append(f"Zitat-Teil nicht im Referenztext gefunden: „{f[:60]}…“")
+    real_page = ref.page_of(min(nums))
+    if real_page is not None and real_page != info["seite"]:
+        status = _merge(status, WARN)
+        notes.append(f"Seitenangabe S. {info['seite']} stimmt nicht, Zeile {min(nums)} steht auf S. {real_page}")
     if status == OK:
         notes.append(f"Zitat gefunden ({fname}, Zeile {'/'.join(map(str, nums))})")
     return status, notes, info
@@ -187,10 +205,14 @@ def check_sql_file(path: Path) -> dict:
         if where_code != code:
             b["status"] = FAIL
             b["notizen"].append(f"Code im Kommentar ({code}) ≠ Code im WHERE ({where_code})")
-        if GUARD not in re.sub(r"\s+", "", upd["where"]).lower():
+        where_norm = re.sub(r"\s+", "", upd["where"]).lower()
+        if GUARD not in where_norm:
             b["status"] = FAIL
             b["notizen"].append("Schutzbedingung fehlt: AND (description IS NULL OR TRIM(description) = '')")
-        unknown = set(upd["columns"]) - {"name", "unit", "description"}
+        elif where_code and where_norm != f"indicator_code='{where_code.lower()}'and{GUARD}":
+            b["status"] = FAIL
+            b["notizen"].append("WHERE enthält mehr als Code und Schutzbedingung")
+        unknown = set(upd["columns"]) - set(ALLOWED_COLUMNS)
         if set(upd["columns"]) - set(upd["set"]):
             b["status"] = FAIL
             b["notizen"].append("Jede Spalte muss einen Text-Wert in einfachen Anführungszeichen bekommen")
@@ -244,7 +266,7 @@ def check_sql_file(path: Path) -> dict:
 
 
 def write_report(run_dir: Path, results: list[dict]) -> Path:
-    lines = [f"# Auto-Prüfung", "", f"Lauf: `{run_dir.name}`  ", f"Geprüft: {datetime.now():%Y-%m-%d %H:%M}", ""]
+    lines = ["# Auto-Prüfung", "", f"Lauf: `{run_dir.name}`  ", f"Geprüft: {datetime.now():%Y-%m-%d %H:%M}", ""]
     for r in results:
         c = r["anzahl"]
         lines += [f"## {r['datei']}", "",
