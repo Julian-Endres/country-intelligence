@@ -57,6 +57,17 @@ LABELLED = ("ordinal", "binary", "categorical")
 DESC_MAX = 200
 KEY_INFO_MAX_CHARS = 300
 RANGE_IN_TEXT = re.compile(r"\d\s*(?:-|–|to)\s*\d")
+RANGE_NUMS = re.compile(r"(-?\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(-?\d+(?:\.\d+)?)")
+SCALE_WORDS = re.compile(r"\b(index|scale|score|ordinal|interval|range)\b", re.IGNORECASE)
+
+
+def repeats_scale(text: str, s: dict) -> bool:
+    """Steht im Text der Skalenbereich (z. B. "0-1" bei scale 0/1)? Altersangaben wie "ages 15-19" zählen nicht."""
+    mn, mx = s.get("scale_min"), s.get("scale_max")
+    for a, b in RANGE_NUMS.findall(text):
+        if mn is not None and mx is not None and float(a) == mn and float(b) == mx:
+            return True
+    return False
 PAGE_IN_REF = re.compile(r"\b(?:S\.|p\.|page|Seite)\s*\d", re.IGNORECASE)
 LABEL_ITEM = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*=\s*(.+?)\s*$")
 
@@ -248,8 +259,8 @@ def check_fields(b: Block) -> None:
             b.add(FAIL, f"description muss genau ein Satz sein (gefunden: {len(sentences)})")
         if not desc.rstrip().endswith("."):
             b.add(WARN, "description endet nicht mit Punkt")
-        if RANGE_IN_TEXT.search(desc):
-            b.add(WARN, "description enthält offenbar einen Zahlenbereich (gehört in scale_min/scale_max)")
+        if repeats_scale(desc, s):
+            b.add(WARN, "description wiederholt den Skalenbereich (gehört nur in scale_min/scale_max)")
 
     st = s.get("scale_type")
     unit = s.get("unit")
@@ -258,7 +269,7 @@ def check_fields(b: Block) -> None:
             b.add(FAIL, f"unit muss bei scale_type {st} leer sein (NULL)")
         if st and st not in NO_UNIT and st != "other" and not unit:
             b.add(WARN, f"unit fehlt, bei scale_type {st} erwartet")
-    if isinstance(unit, str) and RANGE_IN_TEXT.search(unit):
+    if isinstance(unit, str) and RANGE_IN_TEXT.search(unit) and (repeats_scale(unit, s) or SCALE_WORDS.search(unit)):
         b.add(FAIL, f"unit enthält einen Wertebereich („{unit}“), der gehört in scale_min/scale_max")
 
     labels = s.get("value_labels")

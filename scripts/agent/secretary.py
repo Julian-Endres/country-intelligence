@@ -158,7 +158,7 @@ REGELN
 AGENT_TOOLS = T.ALL_TOOLS + [self_check]
 
 
-async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
+async def main(task: str, thema: str, budget: float, max_turns: int) -> dict:
     builtin = ["WebSearch", "WebFetch"]
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
@@ -173,10 +173,12 @@ async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
     )
 
     started = datetime.now()
+    T.QUERY_LOG.clear()          # bei mehreren Läufen nacheinander (batch.py) nicht vermischen
+    T.ACTION_LOG.clear()
     run_dir = runs.new_run("sekretaer", thema, auftrag=task, when=started)
     T.set_run_dir(run_dir)
     print(f"\nAuftrag: {task}\nLauf-Ordner: {run_dir}\nBudget: {budget} USD, max. {max_turns} Turns\n")
-    summary, stats = "", ""
+    summary, stats, result = "", "", {"subtype": "abgebrochen", "kosten": None}
     async for message in query(prompt=task, options=options):
         if isinstance(message, AssistantMessage):
             for block in message.content:
@@ -191,6 +193,7 @@ async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
         elif isinstance(message, ResultMessage):
             summary = message.result or ""
             cost = f"{message.total_cost_usd:.2f} USD" if message.total_cost_usd is not None else "unbekannt"
+            result = {"subtype": message.subtype, "kosten": message.total_cost_usd, "turns": message.num_turns}
             stats = f"Status: {message.subtype}, Turns: {message.num_turns}, Dauer: {message.duration_ms / 60000:.1f} min, Kosten (rechnerisch): {cost}"
 
     print("=" * 60)
@@ -216,6 +219,9 @@ async def main(task: str, thema: str, budget: float, max_turns: int) -> None:
         print(f"Bericht: {run_dir / 'pruefung.md'}")
     else:
         print("\nKeine Vorschlags-SQL in diesem Lauf, Auto-Prüfung entfällt.")
+    result["run_dir"] = run_dir
+    result["pruefung"] = [r["anzahl"] for r in results] if results else []
+    return result
 
 
 if __name__ == "__main__":

@@ -31,6 +31,10 @@ python3 scripts/agent/review.py <lauf>
 # 4. Übertragen: "ja" tippen
 python3 scripts/agent/apply.py <lauf>
 
+# Mehrere Pakete nacheinander, nebenbei (Mac bleibt wach dank caffeinate)
+python3 scripts/agent/batch.py WB --vorschau                       # was wäre dran?
+caffeinate -i python3 scripts/agent/batch.py WB --paket 40 --anzahl 3
+
 # Läufe ohne SQL (Leitfaden) abschließen bzw. Läufe ablegen
 python3 scripts/agent/status.py <lauf> --erledigt "in Notion übernommen"
 python3 scripts/agent/status.py <lauf> --verwerfen "Grund"
@@ -94,6 +98,7 @@ Die Übertragung auf die Notion-Seite der Quelle erledigt Claude im Chat. Danach
 | `secretary.py` | Agent starten (Prompt mit allen Regeln) |
 | `ask.py` | Einzelne Fragen an die DB stellen (nur lesen) |
 | `check.py`, `review.py`, `apply.py`, `status.py` | Schritte 2 bis 4 und Überblick |
+| `batch.py` | Mehrere Pakete einer Quelle nacheinander (feste Code-Listen, nichts doppelt) |
 | `lib/tools.py` | Werkzeuge des Agenten (SQL nur lesend, Dateien, Download, PDF-Text) |
 | `lib/selfcheck.py` | Werkzeug `self_check` (Auto-Prüfung für den Agenten) |
 | `lib/checks.py` | Auto-Prüfung (Regeln v3, Belege, Datenauffälligkeiten) |
@@ -108,3 +113,4 @@ Die Übertragung auf die Notion-Seite der Quelle erledigt Claude im Chat. Danach
 - SQL in der Shell getippt (`syntax error near unexpected token`) → `psql -d country_intelligence -c "…"`
 - `apply.py` bricht ab → nichts ist passiert (Rollback). Meldung lesen, meist hilft `review.py` neu.
 - Agent-Lauf zu teuer oder hängt → `--budget` und `--max-turns` begrenzen beides.
+- Richtwert (WB, 10.11.): 25 Indikatoren ≈ 9 min, 2,14 USD, ca. 20 % eines 5-Stunden-Fensters im Pro-Abo.
