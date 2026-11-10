@@ -66,8 +66,8 @@ def split_statements(text: str) -> tuple[list[Statement], list[str]]:
 
 def find_keyword_outside_strings(sql: str, keyword: str) -> int:
     """Position des letzten Vorkommens von keyword außerhalb von Strings, sonst -1."""
+    # Kein sql.upper() auf den ganzen Text: "ß".upper() ist "SS" und verschiebt alle Positionen.
     pos, in_str, i = -1, False, 0
-    up = sql.upper()
     k = keyword.upper()
     while i < len(sql):
         if sql[i] == "'":
@@ -75,7 +75,7 @@ def find_keyword_outside_strings(sql: str, keyword: str) -> int:
                 i += 2
                 continue
             in_str = not in_str
-        elif not in_str and up.startswith(k, i):
+        elif not in_str and sql[i:i + len(k)].upper() == k:
             before = sql[i - 1] if i > 0 else " "
             after = sql[i + len(k)] if i + len(k) < len(sql) else " "
             if not (before.isalnum() or before == "_") and not (after.isalnum() or after == "_"):

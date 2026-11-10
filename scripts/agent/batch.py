@@ -19,6 +19,7 @@ Stoppt nach dem ersten Lauf, der nicht sauber endet (Budget, Turns, Fehler, Nutz
 
 import argparse
 import asyncio
+import json
 import sys
 from datetime import datetime
 
@@ -34,6 +35,36 @@ HINTS = {
           "dem Code, dann read_text); nur wenn ein Code dort fehlt, einzeln über "
           "https://api.worldbank.org/v2/indicator/<CODE>?format=json mit download_file holen.",
 }
+
+
+WB_ALL_DEFS = "wb_wdi_all_indicator_defs.json"
+
+
+def prepare_wb_defs(codes: list[str], thema: str) -> tuple[str | None, list[str]]:
+    """Zieht die Definitionen der Paket-Codes aus der großen WDI-Datei in eine kleine Textdatei
+    (ohne KI). Spart dem Agenten das Durchblättern von 1,5 MB JSON. Gibt (Dateiname, fehlende Codes)."""
+    src = tools.REF_DIR / WB_ALL_DEFS
+    if not src.exists():
+        return None, codes
+    data = json.loads(src.read_text(encoding="utf-8"))
+    entries = data[1] if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list) else []
+    by_id = {e.get("id"): e for e in entries if isinstance(e, dict)}
+    clean = lambda v: " ".join(str(v or "").split())          # Zeilenumbrüche raus, damit Zitate passen
+    lines, missing = [f"Auszug aus {WB_ALL_DEFS} (Weltbank-API, alle WDI-Indikatoren) für {thema}", ""], []
+    for code in codes:
+        e = by_id.get(code.split(":", 1)[1])
+        if not e:
+            missing.append(code)
+            continue
+        src_name = e.get("source", {}).get("value", "") if isinstance(e.get("source"), dict) else ""
+        topics = ", ".join(t.get("value", "") for t in e.get("topics") or [] if isinstance(t, dict))
+        lines += [f"=== {code} ===", f"name: {clean(e.get('name'))}", f"unit: {clean(e.get('unit'))}",
+                  f"source: {clean(src_name)}", f"topics: {clean(topics)}",
+                  f"sourceNote: {clean(e.get('sourceNote'))}",
+                  f"sourceOrganization: {clean(e.get('sourceOrganization'))}", ""]
+    name = f"wb_defs_{thema}.txt"
+    (tools.REF_DIR / name).write_text("\n".join(lines), encoding="utf-8")
+    return name, missing
 
 
 def codes_in_open_runs() -> set[str]:
@@ -67,9 +98,19 @@ def candidates(source: str, domain: str | None) -> list[tuple[str, str]]:
         conn.close()
 
 
-def task_for(source: str, codes: list[str], nr: int) -> str:
+def task_for(source: str, codes: list[str], nr: int, defs_file: str | None = None,
+             missing: list[str] | None = None) -> str:
+    if defs_file:
+        hint = (f"Die Definitionen dieses Pakets stehen gesammelt in {defs_file} (Referenzordner, ein Block pro "
+                f"Code). Lies diese Datei mit read_text vollständig und belege mit ihr (Datei und Zeile). "
+                f"Die große Datei {WB_ALL_DEFS} nicht durchsuchen.")
+        if missing:
+            hint += (f" Nicht darin enthalten sind: {', '.join(missing)}; dafür einzeln "
+                     f"https://api.worldbank.org/v2/indicator/<CODE>?format=json mit download_file holen.")
+    else:
+        hint = HINTS.get(source, "")
     return (f"{source} Metadaten v3, Paket {nr}: Beschreibe genau diese {len(codes)} Indikatoren "
-            f"(keine anderen): {', '.join(codes)}. {HINTS.get(source, '')} "
+            f"(keine anderen): {', '.join(codes)}. {hint} "
             "Schreibe metadata.sql (alle 14 Felder, self_check vor dem Abschluss) und befunde.md mit "
             "Länder-Stichprobe für 2 der Indikatoren. Kein Leitfaden.")
 
@@ -83,6 +124,7 @@ def main() -> None:
     ap.add_argument("--budget", type=float, default=4.0, help="Höchstbudget je Lauf in USD")
     ap.add_argument("--max-turns", type=int, default=150)
     ap.add_argument("--vorschau", action="store_true", help="nur anzeigen, nichts starten")
+    ap.add_argument("--model", default=None, help="optional, z. B. sonnet (sonst Standard der CLI)")
     a = ap.parse_args()
 
     src = a.quelle.upper()
@@ -103,7 +145,15 @@ def main() -> None:
         codes = [c for c, _ in p]
         thema = f"{src.lower()}_batch_{start:%H%M}_{i}"
         print(f"\n{'#' * 60}\nPaket {i}/{len(packets)} startet ({len(codes)} Indikatoren)\n{'#' * 60}")
-        res = asyncio.run(secretary.main(task_for(src, codes, i), thema, a.budget, a.max_turns))
+        defs_file, missing = prepare_wb_defs(codes, thema) if src == "WB" else (None, [])
+        if defs_file and len(missing) > len(codes) / 2:
+            print(f"Achtung: {len(missing)} von {len(codes)} Codes nicht in {WB_ALL_DEFS} gefunden, "
+                  "Vorbereitung wird nicht genutzt (bisheriger Weg).")
+            defs_file, missing = None, []
+        if defs_file:
+            print(f"Definitionen vorbereitet: {defs_file} ({len(codes) - len(missing)} von {len(codes)})")
+        res = asyncio.run(secretary.main(task_for(src, codes, i, defs_file, missing), thema, a.budget,
+                                         a.max_turns, a.model))
         done.append(res)
         if res.get("subtype") != "success":
             print(f"\nPaket {i} endete mit „{res.get('subtype')}“. Ich höre hier auf, damit nichts doppelt läuft.")

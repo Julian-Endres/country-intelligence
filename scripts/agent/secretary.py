@@ -158,7 +158,7 @@ REGELN
 AGENT_TOOLS = T.ALL_TOOLS + [self_check]
 
 
-async def main(task: str, thema: str, budget: float, max_turns: int) -> dict:
+async def main(task: str, thema: str, budget: float, max_turns: int, model: str | None = None) -> dict:
     builtin = ["WebSearch", "WebFetch"]
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
@@ -170,6 +170,7 @@ async def main(task: str, thema: str, budget: float, max_turns: int) -> dict:
         setting_sources=[],
         max_turns=max_turns,
         max_budget_usd=budget,
+        **({"model": model} if model else {}),       # z. B. "sonnet"; ohne Angabe: Standard der CLI
     )
 
     started = datetime.now()
@@ -230,5 +231,6 @@ if __name__ == "__main__":
     ap.add_argument("--thema", default="auftrag", help="Kurzname für den Lauf-Ordner, z. B. vdem")
     ap.add_argument("--budget", type=float, default=1.0, help="Höchstbudget in USD (rechnerisch), Standard 1.0")
     ap.add_argument("--max-turns", type=int, default=80)
+    ap.add_argument("--model", default=None, help="optional, z. B. sonnet (sonst Standard der CLI)")
     a = ap.parse_args()
-    asyncio.run(main(a.task, a.thema, a.budget, a.max_turns))
+    asyncio.run(main(a.task, a.thema, a.budget, a.max_turns, a.model))
