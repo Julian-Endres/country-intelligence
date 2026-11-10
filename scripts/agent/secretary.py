@@ -7,10 +7,10 @@ Aufruf aus der Repo-Wurzel (venv aktiv):
   python3 scripts/agent/secretary.py "Auftrag" --thema vdem [--budget 1.0] [--max-turns 80]
 
 Beispiel:
-  python3 scripts/agent/secretary.py "VDEM: Codebook besorgen, für 10 Indikatoren ohne Beschreibung Vorschläge machen und einen Explainer schreiben." --thema vdem --budget 1.5
+  python3 scripts/agent/secretary.py "VDEM: 10 Indikatoren nach Metadaten v3 beschreiben." --thema vdem --budget 1.5
 
 Ergebnis: Lauf-Ordner scripts/agent/output/<datum>_sekretaer_<thema>/ mit
-metadata.sql, explainer.md, befunde.md, protokoll.md und pruefung.md (Auto-Prüfung).
+metadata.sql, befunde.md, ggf. leitfaden.md, protokoll.md und pruefung.md (Auto-Prüfung).
 """
 
 import argparse
@@ -35,7 +35,9 @@ Du kannst die Datenbank nur lesen. Du arbeitest selbstständig, bis der Auftrag 
 
 DATENBANK
 - indicators (iso_numeric, indicator_code, source_id, value, time_period, obs_status): ca. 4,2 Mio. Zeilen. Nie ungefiltert abfragen, immer mit WHERE und Aggregation.
-- indicator_metadata (indicator_code, name, description, unit, source_id, domain, category, dimension)
+- indicator_metadata (indicator_code, name, description, unit, source_id, domain, category, dimension,
+  scale_type, scale_min, scale_max, direction, data_origin, temporal_type, key_info, producer_definition,
+  value_labels, reference, keywords, metadata_reviewed_at, ...). Spaltenkommentare enthalten die Regeln.
 - sources (id, name, short_code, url, description)
 - countries (u. a. iso_numeric; Bolivien = '068', Deutschland = '276')
 - Weitere Schemas: politics, trade, international, history, culture, biodiversity (über information_schema nachsehen).
@@ -47,22 +49,54 @@ WERKZEUGE FÜR QUELLENMATERIAL
    und mit download_file in den Referenzordner laden. Sinnvoller Dateiname, z. B. vdem_codebook_v15.pdf.
 3. pdf_to_text einmal ausführen, danach mit search_text gezielt suchen und mit read_text die Stelle lesen.
    Nie das ganze Dokument lesen, nur die Abschnitte zu den gesuchten Indikatoren.
+4. APIs (z. B. Weltbank): Antwort mit download_file als .json in den Referenzordner speichern
+   (z. B. https://api.worldbank.org/v2/indicator/NY.GDP.PCAP.CD?format=json -> wb_NY.GDP.PCAP.CD.json)
+   und mit search_text/read_text wörtlich lesen. WebFetch kürzt und umschreibt Texte, deshalb nie als Beleg
+   für wörtliche Zitate verwenden; WebFetch nur für Überblicksseiten.
 
 ERGEBNISSE (mit write_output, laufend schreiben, nicht erst am Ende)
-A) Vorschlags-SQL, Datei metadata.sql:
-   - Erste Zeile: BEGIN;  Letzte Zeile: -- COMMIT;  (Julian committet selbst)
-   - Pro Indikator ein Block:
-     -- <indicator_code>   (genau so, z. B. -- VDEM:v2x_libdem, allein in der Zeile)
-     -- Beleg: <Datei>, S. <Seite>, Zeile <Zeile>: "<wörtliches Originalzitat, höchstens 20 Wörter>"
-        (Zitat wörtlich aus read_text kopieren, Auslassungen nur mit ...; die Auto-Prüfung vergleicht es mit dem Text)
+A) Vorschlags-SQL, Datei metadata.sql (Metadaten v3). Bestehende Werte dürfen ersetzt werden;
+   vorher per sql_query lesen, was drinsteht. Julian sieht alt und neu nebeneinander.
+   - Erste Zeile: BEGIN;  Letzte Zeile: -- COMMIT;
+   - Pro Indikator ein Block, IMMER alle 14 Felder (unbekannt oder nicht belegbar: NULL, nicht raten):
+     -- <indicator_code>          (allein in der Zeile, z. B. -- VDEM:v2x_libdem)
+     -- Beleg: <Datei>, S. <Seite>, Zeile <Zeile>: "<wörtliches Zitat, höchstens 20 Wörter>"
+        (Hauptbeleg für Definition und Beschreibung; bei Dateien ohne Seiten "S. …," weglassen)
+     -- Beleg k1: <Datei>, S. <Seite>, Zeile <Zeile>: "<Zitat>"   (je ein Beleg pro key_info-Punkt, k1 bis k5)
      -- Sicherheit: HOCH | MITTEL | UNSICHER (mit Grund)
-     UPDATE indicator_metadata SET name = '...', unit = '...', description = '...'
-     WHERE indicator_code = '...' AND (description IS NULL OR TRIM(description) = '');
-   - name: der offizielle lesbare Name laut Quelle (Englisch, wie in der Quelle).
-   - unit: die tatsächliche Skala, gegen die echten Werte geprüft (min/max/Anzahl Stufen per sql_query).
-     Beispiele: 'index 0-1', 'ordinal 0-3', 'latent scale (approx. -4 to 4)', 'binary 0/1'.
-   - description: 1-3 Sätze auf Englisch, was der Indikator misst und wie die Skala zu lesen ist (hoch = ?).
-     Inhalt nur aus dem Quellenmaterial, nichts erfinden. Einfache Anführungszeichen im Text verdoppeln ('').
+     UPDATE indicator_metadata SET
+       name = '...', description = '...', unit = NULL, scale_type = '...', scale_min = 0, scale_max = 1,
+       direction = '...', data_origin = '...', temporal_type = '...',
+       key_info = ARRAY['...', 'Note: ...'], producer_definition = '...', value_labels = NULL,
+       reference = '...', keywords = ARRAY['...', '...']
+     WHERE indicator_code = '...';
+     Zitate wörtlich aus read_text kopieren, Auslassungen nur mit ...; die Auto-Prüfung vergleicht sie mit dem Text.
+     Einfache Anführungszeichen im Text verdoppeln (''). Zahlen ohne Anführungszeichen, leer = NULL.
+   Feldregeln (Englisch, außer keywords):
+   - name: offizieller Name laut Quelle, nicht übersetzt.
+   - description: GENAU EIN Satz, einfache Wörter, höchstens 200 Zeichen: was der Indikator ist.
+     So formuliert, dass ein hoher Wert "mehr davon" bedeutet ("How widespread corruption is ...").
+     Keine Skalenzahlen, kein Quellenname, keine Fachbegriffe ohne Erklärung.
+   - key_info: 1-5 Kernpunkte: wie entsteht der Wert, wie liest man ihn, Grenzen, Vergleichbarkeit,
+     Unsicherheit, Bezugszeitraum. Jeder Punkt aus der Quelle belegt (Beleg kN). Eigene Folgerungen nur als
+     Punkt, der mit "Note: " beginnt (ohne Beleg). Gibt die Quelle wenig her: weniger Punkte, nichts auffüllen.
+   - producer_definition: wörtliche Definition des Herausgebers (z. B. V-Dem "Question", Weltbank sourceNote),
+     muss wörtlich im Referenztext des Hauptbelegs stehen. Sonst NULL.
+   - unit: echte Maßeinheit ohne Wertebereich ("current US dollars", "years", "deaths per 1,000 live births").
+     Bei scale_type index, ordinal, binary, categorical: NULL.
+   - scale_type: index | ordinal | binary | categorical | percent | count | currency | rate | ratio |
+     measure (Messgröße wie Jahre, Tonnen, km²) | other
+   - scale_min / scale_max: nur wenn die Quelle sie nennt oder sie mathematisch feststehen (Prozent 0/100),
+     sonst NULL. Gegen die echten Werte prüfen (min/max per sql_query); Abweichungen in befunde.md.
+   - direction: higher_is_better | higher_is_worse | neutral | not_applicable. Nur werten, wo das allgemein
+     anerkannt ist (Lebenserwartung, Kindersterblichkeit, Korruption); sonst neutral.
+   - data_origin: Hauptherkunft der Rohdaten, nicht die Bauweise: expert_survey | official_statistics |
+     population_survey | model_estimate | event_count | administrative_record | other. Nicht belegbar: NULL.
+   - temporal_type: annual | survey_wave | snapshot | irregular | other
+   - value_labels: nur bei ordinal, binary, categorical, Format '0 = ...; 1 = ...'. Sonst NULL.
+   - reference: Fundstelle als Abschnitt bzw. Variableneintrag, nicht als Seite ("V-Dem Codebook v16, section 2.1.2").
+   - keywords: 3-8 Suchbegriffe, Deutsch und Englisch gemischt.
+   - Fällt auf, dass ein Indikator laut Quelle überholt oder ersetzt ist: in befunde.md, nicht im SQL.
    - Nach jeweils höchstens 5 Indikatoren mit append=true anhängen.
 B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    Zweck: Julian will die Quelle als Ganzes verstehen und sich nach und nach bis zu den Rohdaten vorarbeiten.
@@ -88,8 +122,10 @@ B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    Dazu Datei leitfaden_belege.md: pro Abschnitt die Fundstellen (Dokument + Seite/Zeile oder URL), damit jede
    Aussage prüfbar bleibt. Für Abschnitte 2, 3 und 9 offizielle Seiten der Quelle mit WebFetch lesen
    (About, Methodik, FAQ), Dokumente ggf. mit download_file holen.
-C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören
-   (falsche Einheiten, Lücken, Widersprüche zu Notion-Angaben usw.), jeweils mit Beleg.
+C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören, vor allem Datenprobleme
+   (echte Werte außerhalb der Skala, Werte, die nicht zur Original-Datei passen, Lücken, Widersprüche).
+   Jeweils mit Beleg. Bekannte Fälle stehen in der Tabelle known_issues (per sql_query lesen)
+   und werden nicht erneut gemeldet.
 
 REGELN
 1. Jede Zahl stammt aus einer Abfrage dieses Laufs, jede inhaltliche Aussage aus dem Quellenmaterial. Nichts aus dem Gedächtnis.

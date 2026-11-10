@@ -28,7 +28,7 @@ def main(arg: str) -> None:
         for b in r["bloecke"]:
             if b["status"] != "OK":
                 print(f"  {checks.ICON[b['status']]} {b['code']}: " + " | ".join(
-                    n for n in b["notizen"] if not n.startswith(("Zitat gefunden", "Einheit passt"))))
+                    n for n in b["notizen"] if not checks.is_quiet(n)))
     print(f"\nBericht: {run_dir / 'pruefung.md'}")
 
 

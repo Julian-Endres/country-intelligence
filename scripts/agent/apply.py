@@ -9,7 +9,9 @@ Sicherungen:
   - nur Status „freigegeben“ und nur Vorschläge, die in review.json auf „übernehmen“ stehen
   - Fingerabdruck: Wurde die SQL-Datei nach der Prüfung geändert, bricht das Skript ab
   - Die SQL-Datei des Agenten wird NIE ausgeführt. apply.py baut jedes UPDATE selbst
-    (mit Parametern), nur für erlaubte Spalten, und nur wenn die Beschreibung noch leer ist
+    (mit Parametern), nur für erlaubte Spalten
+  - Ersetzen nur, was du gesehen hast: Steht in der DB nicht mehr genau der alte Wert aus der
+    Prüfung, bricht das Skript ab
   - vorher: Backup der ganzen Tabelle indicator_metadata nach backups/agent/ (die letzten 5 bleiben)
     und rueckgaengig.sql im Lauf-Ordner (alte Werte der betroffenen Zeilen)
   - eine Transaktion: Jedes UPDATE muss genau 1 Zeile ändern, sonst wird alles zurückgerollt
@@ -30,7 +32,16 @@ from lib.writer import connect_write
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKUP_DIR = REPO_ROOT / "backups" / "agent"
 KEEP_BACKUPS = 5
-COLS = ("name", "unit", "description", "metadata_reviewed_at")
+UNDO_COLS = checks.ALLOWED_COLUMNS + ("metadata_reviewed_at",)
+
+
+def same(a, b) -> bool:
+    """Vergleich mit Toleranz für Zahlen; leer, '' und [] gelten als gleich."""
+    if a in (None, "", []) and b in (None, "", []):
+        return True
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return abs(float(a) - float(b)) < 1e-9
+    return a == b
 
 
 class Abbruch(Exception):
@@ -64,11 +75,15 @@ def load_plan(run_dir: Path) -> tuple[list[dict], list[dict]]:
         extra = set(p["columns"]) - set(checks.ALLOWED_COLUMNS)
         if extra or set(p["columns"]) - set(p["set"]):
             raise Abbruch(f"{d['code']}: unerlaubte Spalten {sorted(extra) or p['columns']}")
+        if p["errors"]:
+            raise Abbruch(f"{d['code']}: nicht lesbare Werte: {'; '.join(p['errors'])}")
         if p["set"] != d["set"]:
-            raise Abbruch(f"{d['code']}: Text weicht von der geprüften Fassung ab")
-        if not p["set"].get("description", "").strip():
+            raise Abbruch(f"{d['code']}: Vorschlag weicht von der geprüften Fassung ab")
+        if not (p["set"].get("description") or "").strip():
             raise Abbruch(f"{d['code']}: keine Beschreibung im Vorschlag")
-        updates.append({"code": d["code"], "set": p["set"]})
+        if "alt" not in d:
+            raise Abbruch(f"{d['code']}: review.json ohne alte Werte (alte Fassung), bitte neu prüfen")
+        updates.append({"code": d["code"], "set": p["set"], "alt": d["alt"]})
     codes = [u["code"] for u in updates]
     if len(codes) != len(set(codes)):
         raise Abbruch("Ein Code kommt mehrfach vor: " + ", ".join(sorted({c for c in codes if codes.count(c) > 1})))
@@ -90,29 +105,29 @@ def undo_text(cur, rows: list[tuple]) -> str:
     lines = ["-- Rückgängig machen der Übertragung (alte Werte vor apply.py)",
              f"-- Erstellt {datetime.now():%Y-%m-%d %H:%M}. Nur ausführen, wenn du das wirklich willst.",
              "BEGIN;"]
-    for code, name, unit, desc, reviewed in rows:
-        lines.append(cur.mogrify(
-            "UPDATE indicator_metadata SET name = %s, unit = %s, description = %s, metadata_reviewed_at = %s "
-            "WHERE indicator_code = %s;", (name, unit, desc, reviewed, code)).decode("utf-8"))
+    assign = ", ".join(f"{c} = %s" for c in UNDO_COLS)
+    for row in rows:
+        lines.append(cur.mogrify(f"UPDATE indicator_metadata SET {assign} WHERE indicator_code = %s;",
+                                 list(row[1:]) + [row[0]]).decode("utf-8"))
     lines.append("-- COMMIT;")
     return "\n".join(lines) + "\n"
 
 
 def verify(cur, updates: list[dict]) -> list[str]:
-    cur.execute("SELECT indicator_code, name, unit, description, metadata_reviewed_at "
+    cols = ", ".join(checks.ALLOWED_COLUMNS)
+    cur.execute(f"SELECT indicator_code, {cols}, metadata_reviewed_at "
                 "FROM indicator_metadata WHERE indicator_code = ANY(%s)", ([u["code"] for u in updates],))
-    have = {r[0]: r for r in cur.fetchall()}
+    have = {r[0]: dict(zip(UNDO_COLS, r[1:])) for r in cur.fetchall()}
     errors = []
     for u in updates:
         r = have.get(u["code"])
         if not r:
             errors.append(f"{u['code']}: Zeile fehlt")
             continue
-        cur_vals = dict(zip(COLS, r[1:]))
         for col, val in u["set"].items():
-            if cur_vals[col] != val:
+            if not same(r[col], val):
                 errors.append(f"{u['code']}: {col} weicht ab")
-        if cur_vals["metadata_reviewed_at"] is None:
+        if r["metadata_reviewed_at"] is None:
             errors.append(f"{u['code']}: metadata_reviewed_at nicht gesetzt")
     return errors
 
@@ -130,7 +145,8 @@ def main(arg: str) -> None:
         sys.exit("Nichts zu übertragen.")
 
     print(f"Lauf: {run_dir.name}")
-    print(f"  {len(updates)} Beschreibungen eintragen (indicator_metadata)")
+    print(f"  {len(updates)} Indikatoren eintragen (indicator_metadata), davon "
+          f"{sum(1 for u in updates if any(u['alt'].get(c) not in (None, '', []) for c in u['set']))} mit Ersetzungen")
     print(f"  {len(issues)} bekannte Auffälligkeiten festhalten (known_issues)")
     try:
         ok = input("Übertragen? Zum Bestätigen „ja“ tippen: ").strip().lower() == "ja"
@@ -146,21 +162,23 @@ def main(arg: str) -> None:
             backup = backup_table(cur, stamp)
             print(f"  Backup: {backup.relative_to(REPO_ROOT)}")
             codes = [u["code"] for u in updates]
-            cur.execute("SELECT indicator_code, name, unit, description, metadata_reviewed_at "
+            cur.execute(f"SELECT indicator_code, {', '.join(UNDO_COLS)} "
                         "FROM indicator_metadata WHERE indicator_code = ANY(%s) FOR UPDATE", (codes,))
             old_rows = cur.fetchall()
             if len(old_rows) != len(codes):
                 missing = set(codes) - {r[0] for r in old_rows}
                 raise Abbruch(f"Codes nicht in indicator_metadata: {', '.join(sorted(missing))}")
-            filled = [r[0] for r in old_rows if r[3] and r[3].strip()]
-            if filled:
-                raise Abbruch(f"Beschreibung schon befüllt (nicht überschreiben): {', '.join(filled)}")
+            current = {r[0]: dict(zip(UNDO_COLS, r[1:])) for r in old_rows}
+            changed = [f"{u['code']}.{c}" for u in updates for c in u["set"]
+                       if not same(current[u["code"]][c], u["alt"].get(c))]
+            if changed:
+                raise Abbruch("Seit der Prüfung in der DB geändert (nicht überschreiben): " + ", ".join(changed))
             undo_sql = undo_text(cur, old_rows)
 
             for u in updates:
                 cols = list(u["set"])
                 q = psql.SQL("UPDATE indicator_metadata SET {}, metadata_reviewed_at = now() "
-                             "WHERE indicator_code = %s AND (description IS NULL OR TRIM(description) = '')").format(
+                             "WHERE indicator_code = %s").format(
                     psql.SQL(", ").join(psql.SQL("{} = %s").format(psql.Identifier(c)) for c in cols))
                 cur.execute(q, [u["set"][c] for c in cols] + [u["code"]])
                 if cur.rowcount != 1:
@@ -175,7 +193,7 @@ def main(arg: str) -> None:
                     print(f"  known_issues: {d['code']} schon vorhanden, übersprungen")
                     continue
                 desc = (f"{d['notiz']}\n\nFestgehalten bei der Prüfung von Lauf {run_dir.name}. "
-                        f"Verworfener Vorschlag: " + "; ".join(f"{k} = {v}" for k, v in d["set"].items()))
+                        f"Verworfener Vorschlag: " + "; ".join(f"{k} = {v}" for k, v in d["set"].items() if k in ("name", "description")))
                 cur.execute("INSERT INTO known_issues (scope, indicator_code, title, description, decision) "
                             "VALUES ('indicator', %s, %s, %s, 'accepted')", (d["code"], title, desc))
                 n_issue += 1
@@ -206,7 +224,7 @@ def main(arg: str) -> None:
         conn.close()
 
     lines = ["# Übertragung", "", f"Lauf: `{run_dir.name}`  ", f"Übertragen: {datetime.now():%Y-%m-%d %H:%M}", "",
-             f"- {len(updates)} Beschreibungen eingetragen, metadata_reviewed_at gesetzt",
+             f"- {len(updates)} Indikatoren eingetragen, metadata_reviewed_at gesetzt",
              f"- {n_issue} Einträge in known_issues",
              f"- Backup: `{backup.relative_to(REPO_ROOT)}`",
              f"- Rückgängig: `{undo.name}`",

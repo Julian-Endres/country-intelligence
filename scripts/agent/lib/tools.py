@@ -7,9 +7,9 @@ Ordnern möglich:
   - data/raw/reference/     Referenzmaterial (Codebooks usw.), von Git ignoriert
 """
 
+import json
 import os
 import re
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -197,6 +197,13 @@ async def download_file(args: dict[str, Any]) -> dict[str, Any]:
                         return _text(f"FEHLER: Datei größer als {MAX_DOWNLOAD_MB} MB, abgebrochen.")
                     f.write(chunk)
             tmp.rename(target)
+        if target.suffix.lower() == ".json":
+            # API-Antworten oft in einer Zeile: lesbar formatieren, damit Belege sinnvolle Zeilennummern haben
+            try:
+                data = json.loads(target.read_text(encoding="utf-8"))
+                target.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+            except ValueError:
+                pass
     except Exception as e:
         _log(f"download_file FEHLER {url}: {e}")
         return _text(f"FEHLER beim Download: {e}")

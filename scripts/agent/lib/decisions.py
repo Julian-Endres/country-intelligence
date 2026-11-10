@@ -38,7 +38,7 @@ def parse_proposals(path: Path) -> list[dict]:
         if not upd:
             continue
         code = next((m.group(1) for c in st.comments if (m := CODE_LINE.match(c))), None)
-        out.append({"code": code, "set": upd["set"], "columns": upd["columns"],
+        out.append({"code": code, "set": upd["set"], "columns": upd["columns"], "errors": upd["errors"],
                     "where": upd["where"], "sha": fingerprint(st.sql), "zeile": st.line})
     return out
 

@@ -34,25 +34,49 @@ def wrap(label: str, text: str) -> str:
     return textwrap.fill(text, WIDTH, initial_indent=f"{label}: ", subsequent_indent=pad)
 
 
+def fmt(v) -> str:
+    if v is None or v == "" or v == []:
+        return "(leer)"
+    if isinstance(v, float):
+        return f"{v:g}"
+    if isinstance(v, list):
+        return " | ".join(v)
+    return str(v)
+
+
 def show(b: dict, nr: int, total: int, why: str) -> None:
-    s = b["set"]
+    s, alt = b["set"], b.get("alt", {})
     print("\n" + "─" * WIDTH)
     print(f"[{nr}/{total}]  {checks.ICON[b['status']]}  {b['code']}   ({why})")
     print("─" * WIDTH)
     for col in checks.ALLOWED_COLUMNS:
-        if col in s:
-            print(wrap(col.capitalize(), s[col]))
+        if col not in s:
+            continue
+        new, old = s[col], alt.get(col)
+        if col == "key_info" and isinstance(new, list):
+            print(f"Key_info:{'   (ersetzt: ' + fmt(old) + ')' if old not in (None, [], new) else ''}")
+            for i, t in enumerate(new, 1):
+                print(textwrap.fill(t, WIDTH, initial_indent=f"  {i}. ", subsequent_indent="     "))
+            continue
+        label = col.capitalize()
+        if old not in (None, "", []) and old != new:
+            print(wrap(f"{label} ALT", fmt(old)))
+            print(wrap(f"{label} NEU", fmt(new)))
+        else:
+            print(wrap(label, fmt(new)))
     w = b.get("werte")
     if w and w.get("n"):
         print(f"Werte in der DB: {w['min']:g} bis {w['max']:g}, {w['distinct']} verschiedene, {w['n']} Zeilen")
     be = b.get("beleg") or {}
     if be.get("zitat"):
-        print(wrap("Beleg", f"{be['datei']}, S. {be['seite']}: „{be['zitat']}“"))
+        print(wrap("Beleg", f"{be['datei']}: „{be['zitat']}“"))
     elif be.get("quelle"):
         print(f"Beleg: {be['quelle']}")
+    if b.get("freigegeben"):
+        print(f"Schon freigegeben am {b['freigegeben'][:10]}")
     if b.get("sicherheit"):
         print(f"Sicherheit (laut Agent): {b['sicherheit']}")
-    hints = [n for n in b["notizen"] if not n.startswith(("Zitat gefunden", "Einheit passt", "Einheit wird nicht"))]
+    hints = [n for n in b["notizen"] if not checks.is_quiet(n)]
     for n in hints:
         print(wrap("  Auto-Prüfung", n))
 
@@ -92,7 +116,7 @@ def main(arg: str) -> None:
         for b in r["bloecke"]:
             entry = {"datei": r["datei"], "datei_hash": decisions.file_hash(sql_path),
                      "code": b["code"], "sha": decisions.fingerprint(b["sql"]),
-                     "auto": b["status"], "set": b["set"], "notiz": ""}
+                     "auto": b["status"], "set": b["set"], "alt": b.get("alt", {}), "notiz": ""}
             if b["status"] == checks.FAIL:
                 decided.append({**entry, "entscheidung": N, "grund": "automatisch (❌ Auto-Prüfung)",
                                 "notiz": " | ".join(b["notizen"])})
