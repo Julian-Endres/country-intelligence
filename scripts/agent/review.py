@@ -9,8 +9,9 @@ Ablauf:
   2. ❌ fehlerhafte Vorschläge werden automatisch verworfen.
   3. Du siehst alle ⚠️-Vorschläge (darunter alle mit Sicherheit MITTEL/UNSICHER)
      und 3 zufällige ✅ als Stichprobe. Die übrigen ✅ werden übernommen.
-     Lehnst du eine Stichprobe ab, zeigt das Skript alle übrigen ✅ an.
-  4. Tasten:  j = übernehmen   n = verwerfen   k = bekannte Auffälligkeit
+     Lehnst du eine Stichprobe mit n ab, zeigt das Skript alle übrigen ✅ an.
+    k bei einer Stichprobe weitet nicht aus (der Text ist ok, das Problem liegt in den Daten).
+  4. Tasten:  j = übernehmen   n = verwerfen   k = übernehmen + Datenproblem in known_issues
               (verwerfen und in known_issues festhalten)   a = abbrechen, nichts speichern
   5. Am Ende siehst du die Zusammenfassung und bestätigst das Speichern.
      Ergebnis: review.json im Lauf-Ordner, Status „freigegeben“.
@@ -131,7 +132,7 @@ def main(arg: str) -> None:
     n_fail = sum(1 for d in decided if d["entscheidung"] == N)
     n_ok = sum(1 for d in decided if d["entscheidung"] == J)
     print(f"\n{len(queue)} zum Ansehen · {n_ok} ✅ ohne Stichprobe · {n_fail} ❌ automatisch verworfen")
-    print("Tasten: j = übernehmen · n = verwerfen · k = bekannte Auffälligkeit · a = abbrechen")
+    print("Tasten: j = übernehmen · n = verwerfen · k = übernehmen + known_issues · a = abbrechen")
 
     i, expanded = 0, False
     while i < len(queue):
@@ -151,7 +152,8 @@ def main(arg: str) -> None:
                     sys.exit("Abgebrochen. Nichts gespeichert.")
             decided.append({**entry, "entscheidung": N if a == "n" else K,
                             "grund": f"angesehen ({why})", "notiz": note})
-            if why == "Stichprobe" and not expanded:
+            # Nur n weitet aus: k heißt "Text gut, Daten faul" und sagt nichts über die übrigen Vorschläge.
+            if why == "Stichprobe" and a == "n" and not expanded:
                 expanded = True
                 rest = [d for d in decided if d.get("_block") is not None]
                 for d in rest:

@@ -16,7 +16,8 @@ Sicherungen:
     und rueckgaengig.sql im Lauf-Ordner (alte Werte der betroffenen Zeilen)
   - eine Transaktion: Jedes UPDATE muss genau 1 Zeile ändern, sonst wird alles zurückgerollt
   - Kontrolle vor und nach dem COMMIT: Steht in der DB genau der freigegebene Text?
-  - setzt metadata_reviewed_at; „k“-Entscheidungen landen in known_issues (vorher Existenzprüfung)
+  - setzt metadata_reviewed_at; „k“ wird übernommen wie „j“ und landet zusätzlich in known_issues
+    (vorher Existenzprüfung)
 """
 
 import sys
@@ -70,8 +71,8 @@ def load_plan(run_dir: Path) -> tuple[list[dict], list[dict]]:
         if not p or p["code"] != d["code"]:
             raise Abbruch(f"Vorschlag {d['code']} nicht mehr in {f} gefunden (Fingerabdruck)")
         if d["entscheidung"] == K:
+            # k = Text übernehmen UND Datenproblem in known_issues festhalten (seit 10.11. abends)
             issues.append(d)
-            continue
         extra = set(p["columns"]) - set(checks.ALLOWED_COLUMNS)
         if extra or set(p["columns"]) - set(p["set"]):
             raise Abbruch(f"{d['code']}: unerlaubte Spalten {sorted(extra) or p['columns']}")
