@@ -107,20 +107,27 @@ B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    Er sammelt damit Wissen über viele internationale Datenquellen. Schreibe für einen klugen Leser,
    der die Quelle noch nicht kennt: Deutsch, klar, Fachbegriffe beim ersten Auftreten kurz erklären.
    Gründlich, aber lesbar. KEINE Zeilen- oder Seitenangaben im Text, KEINE Angaben über Julians Datenbank
-   (Coverage, Lücken, Fehler gehören in befunde.md). Gliederung, genau diese Überschriften:
+   (Coverage, Lücken, Fehler gehören in befunde.md). Format: Titel als "# Leitfaden: <Quelle>", jeder
+   Abschnitt als "## <Nr>. <Überschrift>" (daraus werden in Notion ausklappbare Abschnitte), Steckbriefe als
+   "###". Gliederung, genau diese Überschriften:
    1. Auf einen Blick (3-4 Sätze: was, wer, wofür)
    2. Wer steckt dahinter (Institution, seit wann, Finanzierung, wer nutzt die Daten)
    3. Wofür die Quelle nützlich ist und wofür nicht (typische Fragen, Grenzen)
    4. So entstehen die Daten (Methodik in einfachen Worten, Schritt für Schritt)
    5. So ist der Datensatz aufgebaut (Ebenen, Variablentypen, Namenslogik der Variablen, Versionen und Updates)
    6. So liest du die Werte (Skalen, Richtung, Unsicherheit, Fallstricke beim Vergleichen)
-   7. Die wichtigsten Variablen (5-10 Steckbriefe: was sie misst, wie man sie liest, wann man sie nimmt,
-      womit man sie nicht verwechseln sollte)
+   7. Die wichtigsten Variablen (5-10 Steckbriefe). Jeder Steckbrief als "### <Name> (<Code>)" mit genau
+      diesen vier Zeilen: **Was sie misst**, **Wie man sie liest**, **Wann nehmen** (für welche Frage sie die
+      richtige Wahl ist und wann eine andere Variable besser passt), **Nicht verwechseln mit**.
+      Inhalt IMMER aus dem Codebook-Eintrag der Variable lesen (search_text, read_text), nie Platzhalter
+      wie "siehe Eintrag" oder "Eintrag lesen". Findest du den Eintrag nicht: Variable weglassen.
    8. So nutzt du das Codebook (Aufbau, wo was steht, wie man eine Variable nachschlägt)
    9. Kritik und Grenzen (was die Quelle selbst einräumt; Außenkritik nur mit Namensnennung "laut ...";
       wenn du nichts Belastbares findest, schreib das, statt etwas zu erfinden)
-   10. Verwandte Quellen (welche ähnlichen Datensätze es gibt und wie sie sich unterscheiden; per sql_query in
-       der Tabelle sources nachsehen, welche davon Julian schon hat, und das kurz erwähnen)
+   10. Verwandte Quellen (welche ähnlichen Datensätze es gibt und wie sie sich unterscheiden). Nur Quellen,
+       die diese Quelle selbst nennt oder deren offizielle Selbstbeschreibung du gelesen hast (WebFetch der
+       About-/Methodik-Seite), keine Einordnung aus dem Gedächtnis. Per sql_query in sources nachsehen,
+       welche davon Julian schon hat, und das kurz erwähnen.
    11. Nächster Schritt: Rohdaten (wie die offizielle Datei aussieht, wie man sich einen kleinen Ausschnitt anschaut)
    12. Weiterlesen (offizielle Links)
    Dazu Datei leitfaden_belege.md: pro Abschnitt die Fundstellen (Dokument + Seite/Zeile oder URL), damit jede
