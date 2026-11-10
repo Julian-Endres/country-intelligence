@@ -16,11 +16,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from lib import runs  # noqa: E402
 
 TAG_LIKE = re.compile(r"<(?=[A-Za-z/])")
+# Indikatorcodes mit Punkten (NY.GDP.PCAP.CD) und Dateinamen hält Notion sonst für Internetadressen
+LINK_TRAP = re.compile(r"(?<![\w/`.])([A-Z][A-Z0-9]+(?:\.[A-Za-z0-9]+){2,}|[\w-]+\.(?:md|sql|json|csv|txt|py))(?![\w/`])")
 
 
 def escape_tags(line: str) -> str:
-    """Notion wertet <tag> als Block-Tag; im Fließtext daher maskieren."""
-    return TAG_LIKE.sub(r"\\<", line)
+    """Notion wertet <tag> als Block-Tag; im Fließtext maskieren, in `Code` nicht (dort gilt es wörtlich)."""
+    parts = line.split("`")
+    for i in range(0, len(parts), 2):          # gerade Teile liegen außerhalb von Backticks
+        parts[i] = TAG_LIKE.sub(r"\\<", parts[i])
+        if "](" not in parts[i] and "://" not in parts[i]:   # echte Links nicht anfassen
+            parts[i] = LINK_TRAP.sub(r"`\1`", parts[i])
+    return "`".join(parts)
 
 
 def toggle_title(title: str) -> str:
@@ -43,7 +50,12 @@ def convert(md: str) -> tuple[str, str]:
             sections.append(current)
             continue
         text = line if in_code else escape_tags(line)
-        (current["body"] if current else intro).append(text)
+        target = current["body"] if current else intro
+        # Zeilen, die fett beginnen ("**Wann nehmen:** …"), sonst verschmilzt Markdown sie zu einem Absatz
+        if not in_code and text.startswith("**") and target and target[-1].strip() \
+                and not target[-1].lstrip().startswith(("- ", "* ", "#")) and not re.match(r"\s*\d+\.", target[-1]):
+            target.append("")
+        target.append(text)
 
     out = []
     intro_text = "\n".join(intro).strip()
