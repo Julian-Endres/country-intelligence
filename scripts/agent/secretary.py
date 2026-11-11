@@ -180,8 +180,11 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
     T.set_run_dir(run_dir)
     print(f"\nAuftrag: {task}\nLauf-Ordner: {run_dir}\nBudget: {budget} USD, max. {max_turns} Turns\n")
     summary, stats, result = "", "", {"subtype": "abgebrochen", "kosten": None}
+    models: set[str] = set()     # welches Modell tatsächlich geantwortet hat (für Vergleiche)
     async for message in query(prompt=task, options=options):
         if isinstance(message, AssistantMessage):
+            if getattr(message, "model", None):
+                models.add(message.model)
             for block in message.content:
                 if isinstance(block, ToolUseBlock):
                     name = block.name.replace("mcp__ci__", "")
@@ -194,8 +197,10 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
         elif isinstance(message, ResultMessage):
             summary = message.result or ""
             cost = f"{message.total_cost_usd:.2f} USD" if message.total_cost_usd is not None else "unbekannt"
-            result = {"subtype": message.subtype, "kosten": message.total_cost_usd, "turns": message.num_turns}
-            stats = f"Status: {message.subtype}, Turns: {message.num_turns}, Dauer: {message.duration_ms / 60000:.1f} min, Kosten (rechnerisch): {cost}"
+            modell = ", ".join(sorted(models)) or "unbekannt"
+            result = {"subtype": message.subtype, "kosten": message.total_cost_usd, "turns": message.num_turns,
+                      "modell": modell}
+            stats = f"Status: {message.subtype}, Modell: {modell}, Turns: {message.num_turns}, Dauer: {message.duration_ms / 60000:.1f} min, Kosten (rechnerisch): {cost}"
 
     print("=" * 60)
     print(summary)
