@@ -34,6 +34,9 @@ HINTS = {
     "WB": "Definitionen zuerst in der lokalen Datei wb_wdi_all_indicator_defs.json suchen (search_text nach "
           "dem Code, dann read_text); nur wenn ein Code dort fehlt, einzeln über "
           "https://api.worldbank.org/v2/indicator/<CODE>?format=json mit download_file holen.",
+    "VDEM": "Die Definitionen stehen im lokalen Codebook vdem_codebook_v16.txt (Referenzordner): je Code mit "
+            "search_text nach '(<code ohne VDEM:>)' suchen, dann den Abschnitt mit read_text lesen und mit Datei "
+            "und Zeile belegen. Nichts herunterladen; das Codebook reicht.",
 }
 
 
