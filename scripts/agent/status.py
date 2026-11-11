@@ -41,7 +41,7 @@ def counts(run_dir) -> str:
     if p.exists():
         res = json.loads(p.read_text(encoding="utf-8"))
         c = {k: sum(r["anzahl"][k] for r in res) for k in ("OK", "ANSEHEN", "FEHLER")}
-        parts.append(f"✅{c['OK']} ⚠️{c['ANSEHEN']} ❌{c['FEHLER']}")
+        parts.append(f"✅ {c['OK']}  ⚠️  {c['ANSEHEN']}  ❌ {c['FEHLER']}")
     rv = decisions.load(run_dir)
     if rv:
         e = [d["entscheidung"] for d in rv["entscheidungen"]]

@@ -165,7 +165,7 @@ def main() -> None:
         c = p[0] if p else {}
         cost = f"{r['kosten']:.2f} USD" if r.get("kosten") is not None else "?"
         print(f"  {r['run_dir'].name}: {r.get('subtype')}, {cost}, "
-              f"✅{c.get('OK', 0)} ⚠️{c.get('ANSEHEN', 0)} ❌{c.get('FEHLER', 0)}")
+              f"✅ {c.get('OK', 0)}  ⚠️  {c.get('ANSEHEN', 0)}  ❌ {c.get('FEHLER', 0)}")
     print("Weiter mit:  python3 scripts/agent/status.py   (dann review.py und apply.py je Lauf)")
 
 
