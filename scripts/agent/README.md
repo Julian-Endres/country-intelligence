@@ -113,4 +113,4 @@ Die Übertragung auf die Notion-Seite der Quelle erledigt Claude im Chat. Danach
 - SQL in der Shell getippt (`syntax error near unexpected token`) → `psql -d country_intelligence -c "…"`
 - `apply.py` bricht ab → nichts ist passiert (Rollback). Meldung lesen, meist hilft `review.py` neu.
 - Agent-Lauf zu teuer oder hängt → `--budget` und `--max-turns` begrenzen beides.
-- Richtwert (WB, 10.11.): 25 Indikatoren ≈ 9 min, 2,14 USD, ca. 20 % eines 5-Stunden-Fensters im Pro-Abo.
+- Richtwert (WB, 10.11., rechnerisch): ≈ 0,07 USD je Indikator, ein 40er-Paket 2,70–3,20 USD. Sonnet-Pilot 11.11.: ≈ 0,057 USD je Vorschlag. Laufende Zahlen: Notion „Sekretär – Performance“.

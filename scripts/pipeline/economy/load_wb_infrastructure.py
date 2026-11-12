@@ -24,7 +24,7 @@ indicators = [
     ('WB:IS.ROD.TOTL.KM',    'Roads, total network (km)',                          'Economy & Infrastructure', 'Public Finance & Energy', 'Infrastructure', 'km'),
 
     # Ports
-    ('WB:IS.SHP.GCNW.XQ',    'Container port traffic (TEU)',                       'Economy & Infrastructure', 'Public Finance & Energy', 'Infrastructure', 'TEU'),
+    ('WB:IS.SHP.GCNW.XQ',    'Liner shipping connectivity index (maximum value in 2004 = 100)', 'Economy & Infrastructure', 'Public Finance & Energy', 'Infrastructure', 'index (2004 max = 100)'),
 ]
 
 conn = psycopg2.connect(
