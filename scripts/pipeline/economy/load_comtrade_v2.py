@@ -335,12 +335,14 @@ def build_p1(rows, reporter_map, state):
 
 def build_p2(rows, reporter_map, partner_groups, partner_names, state):
     seen = {}
+    n_gruppen = 0
     for r in rows:
         iso = reporter_map.get(r.get("reporterCode"))
         year, flow, pc, fob = r.get("period"), r.get("flowCode"), r.get("partnerCode"), r.get("primaryValue")
         if not iso or not year or flow not in ("X", "M") or pc is None or fob is None:
             continue
         if int(pc) in partner_groups:
+            n_gruppen += 1
             continue
         key = (iso, int(year), flow, int(pc))
         p_iso, p_name = partner_names.get(int(pc), (None, None))
@@ -349,6 +351,8 @@ def build_p2(rows, reporter_map, partner_groups, partner_names, state):
             state["dubletten"] += 1
             continue
         seen[key] = rec
+    if n_gruppen:
+        log.info(f"    {n_gruppen} Zeilen mit Gruppen-Partner (z. B. World) bewusst übersprungen")
     return list(seen.values())
 
 
