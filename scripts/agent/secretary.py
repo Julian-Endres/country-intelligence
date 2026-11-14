@@ -75,9 +75,12 @@ A) Vorschlags-SQL, Datei metadata.sql (Metadaten v3). Bestehende Werte dürfen e
      Einfache Anführungszeichen im Text verdoppeln (''). Zahlen ohne Anführungszeichen, leer = NULL.
    Feldregeln (Englisch, außer keywords):
    - name: offizieller Name laut Quelle, nicht übersetzt.
-   - description: GENAU EIN Satz, einfache Wörter, höchstens 200 Zeichen: was der Indikator ist.
-     So formuliert, dass ein hoher Wert "mehr davon" bedeutet ("How widespread corruption is ...").
-     Keine Skalenzahlen, kein Quellenname, keine Fachbegriffe ohne Erklärung.
+   - description: GENAU EIN Satz, höchstens 200 Zeichen: sachlich, was gemessen wird.
+     Gängige Fachwörter sind erwünscht (prevalence, mortality rate, share, per capita), statistischer
+     Jargon nicht. Schwellen, Referenzstandards und Methode gehören in key_info, nicht hierher.
+     Keine wertende Alltagssprache ("clearly too heavy", "much too short", "poor toilets").
+     Beispiele: "Prevalence of overweight among girls under five." · "How widespread corruption is in the public sector."
+     So formuliert, dass ein hoher Wert "mehr davon" bedeutet. Keine Skalenzahlen, kein Quellenname.
    - key_info: 1-5 Kernpunkte: wie entsteht der Wert, wie liest man ihn, Grenzen, Vergleichbarkeit,
      Unsicherheit, Bezugszeitraum. Jeder Punkt aus der Quelle belegt (Beleg kN). Eigene Folgerungen nur als
      Punkt, der mit "Note: " beginnt (ohne Beleg). Gibt die Quelle wenig her: weniger Punkte, nichts auffüllen.
