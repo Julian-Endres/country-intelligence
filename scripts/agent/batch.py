@@ -127,7 +127,7 @@ def main() -> None:
     ap.add_argument("--budget", type=float, default=4.0, help="Höchstbudget je Lauf in USD")
     ap.add_argument("--max-turns", type=int, default=150)
     ap.add_argument("--vorschau", action="store_true", help="nur anzeigen, nichts starten")
-    ap.add_argument("--model", default=None, help="optional, z. B. sonnet (sonst Standard der CLI)")
+    ap.add_argument("--model", default="sonnet", help="Modell, Standard sonnet (Entscheidung 14.11., #126); z. B. opus")
     a = ap.parse_args()
 
     src = a.quelle.upper()

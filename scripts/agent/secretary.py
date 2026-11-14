@@ -244,6 +244,6 @@ if __name__ == "__main__":
     ap.add_argument("--thema", default="auftrag", help="Kurzname für den Lauf-Ordner, z. B. vdem")
     ap.add_argument("--budget", type=float, default=1.0, help="Höchstbudget in USD (rechnerisch), Standard 1.0")
     ap.add_argument("--max-turns", type=int, default=80)
-    ap.add_argument("--model", default=None, help="optional, z. B. sonnet (sonst Standard der CLI)")
+    ap.add_argument("--model", default="sonnet", help="Modell, Standard sonnet (Entscheidung 14.11., #126); z. B. opus")
     a = ap.parse_args()
     asyncio.run(main(a.task, a.thema, a.budget, a.max_turns, a.model))

@@ -5,6 +5,7 @@ Quellen-Leitfäden und Befunde zu Datenproblemen. **Er ändert die Datenbank nie
 Er liest nur (Rolle `ci_agent_readonly`) und legt Vorschläge ab. Julian prüft und überträgt.
 
 Läuft über das Pro-Abo (Claude Agent SDK), keine API-Credits nötig.
+Standardmodell ist **Sonnet** (`--model sonnet`, Entscheidung 14.11.); anderes Modell mit `--model opus`.
 
 ## Ablauf in vier Schritten
 
