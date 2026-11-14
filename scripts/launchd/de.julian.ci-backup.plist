@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Wöchentliches DB-Backup, sonntags 20:00 (läuft nach dem Aufwachen nach, wenn der Mac schlief). Backlog #30.
+  Einrichten (Shell auf dem Mac):
+    cp scripts/launchd/de.julian.ci-backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/de.julian.ci-backup.plist
+  Sofort testen:   launchctl start de.julian.ci-backup   (Ergebnis: logs/backup.log)
+  Abschalten:      launchctl unload ~/Library/LaunchAgents/de.julian.ci-backup.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.julian.ci-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/julianendres/Projekte/country-intelligence/scripts/backup_drive.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/opt/postgresql@18/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>CI_DRIVE</key>
+    <string>/Users/julianendres/Library/CloudStorage/GoogleDrive-julian7.e@googlemail.com/Meine Ablage/CountryIntelligence</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key><integer>0</integer>
+    <key>Hour</key><integer>20</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardErrorPath</key>
+  <string>/Users/julianendres/Projekte/country-intelligence/logs/backup_launchd.err</string>
+</dict>
+</plist>
