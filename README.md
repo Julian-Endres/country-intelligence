@@ -46,21 +46,25 @@ Domains 03, 05 and 09 are thin and need new sources. The full category/dimension
 
 ## Data Sources
 
-The mix of standard aggregators (World Bank, WHO, UNDP) **and** specialist sources that most portfolios don't touch (ATOP military alliances, UN General Assembly voting, COLDAT colonial history, MARPOR party manifestos) is deliberate.
+Each source has one home domain, even when its data feeds several. This mirrors `docs/SOURCES_AVAILABLE.md`, which lists every source with its codes, values, coverage, status and loader. The mix of standard aggregators (World Bank, WHO, UNDP) **and** specialist sources that most portfolios don't touch (ATOP alliances, UN General Assembly voting, COLDAT colonial history, MARPOR party manifestos) is deliberate.
 
-**Multi-domain & economy:** World Bank (WDI + WGI), UN Comtrade, WID.world, Penn World Table, Maddison Project, ILO, UNDP, OWID
+| # | Domain | Sources |
+|---|--------|---------|
+| 01 | Population & Demographics | UNHCR |
+| 02 | Health & Survival | WHO, UNDP, FAOSTAT Food Balance Sheets (incl. Food Groups), Global Hunger Index |
+| 03 | Education, Science & Innovation | Nobel Prize |
+| 04 | Economy, Wealth & Labor | World Bank (WDI + WGI), WID.world, Penn World Table 11.0, ILOSTAT, UN Comtrade* |
+| 05 | Infrastructure & Technology | U.S. EIA |
+| 06 | Environment, Climate & Resources | OWID CO₂, FAOSTAT Land Use, Energy Institute, Ember, Open-Meteo ERA5, GBIF* |
+| 07 | Politics, Governance & Law | V-Dem, Polity5, Freedom House, ACLED, UCDP*, UNODC, SIPRI, GI-TOC, Transparency International, Fragile States Index, RSF Press Freedom, WEF Global Gender Gap, MARPOR*, Comparative Constitutions Project*, Cline Center coups* |
+| 08 | Culture, Society & Beliefs | World Values Survey, Hofstede, World Happiness Report, Pew Research, Edelman Trust Barometer, CAF World Giving Index, UNESCO (World Heritage + Intangible Heritage), Glottolog, IMDb, samayo/country-json* |
+| 09 | History & Collective Memory | Maddison Project, Correlates of War, EPR Ethnic Power Relations*, COLDAT* |
+| 10 | International Relations & Global Integration | UNGA voting, KOF Globalisation Index, ATOP, COW IGO membership, Henley Passport Index, DASID*, DDR* |
+| – | Base data | RestCountries (country master data) |
 
-**Governance & politics:** V-Dem, Freedom House, Polity5, Transparency International, SIPRI, Fragile States Index, GI-TOC, UNODC, UCDP, ACLED, MARPOR, Comparative Constitutions Project, Cline Center (coups)
+*\* also or only as relational tables.*
 
-**Health & environment:** WHO GHO, FAO (Food + Land), GBIF, Global Hunger Index, Open-Meteo ERA5, Ember, Energy Institute, EIA
-
-**Culture & society:** World Values Survey, Hofstede, World Happiness Report, Pew Research, UNESCO (WHC + ICH), Nobel Prize, IMDb, Glottolog, CAF World Giving Index, Edelman Trust Barometer
-
-**International relations:** KOF Globalisation Index, ATOP, UNGA voting, COW IGO membership, Henley Passport Index, DASID/DDR diplomatic relations, COLDAT
-
-**History & demographics:** Correlates of War, EPR Ethnic Power Relations, UNHCR, WEF Global Gender Gap
-
-Every loaded source with codes, values, coverage and known issues: `docs/SOURCES_AVAILABLE.md`. Sources not yet loaded: `docs/SOURCES_CANDIDATES.md`.
+Sources not yet loaded, by domain: `docs/SOURCES_CANDIDATES.md`.
 
 ---
 
