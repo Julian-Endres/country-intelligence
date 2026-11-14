@@ -34,7 +34,7 @@ CODE_LINE = re.compile(r"^([A-Za-z0-9_]+:\S+)\s*$")
 DESC_MAX = 200
 ALLOWED_STATUS = {"neu", "geprüft"}
 # Wörter, die auf wertende Alltagssprache hindeuten (nur Hinweis, kein Abbruch)
-SOFT_WORDS = re.compile(r"\b(clearly|too|much|poor|very|really|typical|basically|someone|baby)\b", re.I)
+SOFT_WORDS = re.compile(r"\b(clearly|too|much|(?<!multidimensionally )poor|very|really|typical|basically|someone|baby)\b", re.I)
 
 SYSTEM_PROMPT = """Du formulierst für eine Indikator-Datenbank das Feld description neu. Nur dieses Feld.
 

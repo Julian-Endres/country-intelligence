@@ -203,8 +203,8 @@ async def download_file(args: dict[str, Any]) -> dict[str, Any]:
             try:
                 data = json.loads(target.read_text(encoding="utf-8"))
                 target.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-            except ValueError:
-                pass
+            except ValueError as e:
+                _log(f"download_file: JSON nicht formatierbar ({e}), Datei unformatiert gespeichert: {target}")
     except Exception as e:
         _log(f"download_file FEHLER {url}: {e}")
         return _text(f"FEHLER beim Download: {e}")

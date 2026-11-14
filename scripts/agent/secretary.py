@@ -65,6 +65,8 @@ A) Vorschlags-SQL, Datei metadata.sql (Metadaten v3). Bestehende Werte dürfen e
         (Hauptbeleg für Definition und Beschreibung; bei Dateien ohne Seiten "S. …," weglassen)
      -- Beleg k1: <Datei>, S. <Seite>, Zeile <Zeile>: "<Zitat>"   (je ein Beleg pro key_info-Punkt, k1 bis k5)
      -- Sicherheit: HOCH | MITTEL | UNSICHER (mit Grund)
+        Gesamtstufe = die des schwächsten bewerteten Feldes (nicht "HOCH (…; x MITTEL)" schreiben).
+        data_origin zählt dabei NICHT mit: ein leeres oder unsicheres data_origin ist kein Grund für MITTEL.
      UPDATE indicator_metadata SET
        name = '...', description = '...', unit = NULL, scale_type = '...', scale_min = 0, scale_max = 1,
        direction = '...', data_origin = '...', temporal_type = '...',
@@ -94,8 +96,11 @@ A) Vorschlags-SQL, Datei metadata.sql (Metadaten v3). Bestehende Werte dürfen e
      sonst NULL. Gegen die echten Werte prüfen (min/max per sql_query); Abweichungen in befunde.md.
    - direction: higher_is_better | higher_is_worse | neutral | not_applicable. Nur werten, wo das allgemein
      anerkannt ist (Lebenserwartung, Kindersterblichkeit, Korruption); sonst neutral.
-   - data_origin: Hauptherkunft der Rohdaten, nicht die Bauweise: expert_survey | official_statistics |
-     population_survey | model_estimate | event_count | administrative_record | other. Nicht belegbar: NULL.
+   - data_origin: expert_survey | official_statistics | population_survey | model_estimate | event_count |
+     administrative_record | other. Prüffrage: Beruht der Wert auf einer eigenen Beobachtung genau dieses
+     Landes in genau diesem Jahr? Ja: die Art dieser Beobachtung, auch wenn sie danach zu einem Index
+     verrechnet wird (V-Dem-Indizes, WGI: expert_survey). Nein, weil interpoliert, fortgeschrieben oder
+     modelliert: model_estimate. Nur setzen, wenn eindeutig; sonst NULL (das ist kein Mangel).
    - temporal_type: annual | survey_wave | snapshot | irregular | other
    - value_labels: nur bei ordinal, binary, categorical, Format '0 = ...; 1 = ...'. Sonst NULL.
    - reference: Fundstelle als Abschnitt bzw. Variableneintrag, nicht als Seite ("V-Dem Codebook v16, section 2.1.2").

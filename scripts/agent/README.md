@@ -40,9 +40,17 @@ python3 scripts/agent/status.py <lauf> --erledigt "in Notion übernommen"
 python3 scripts/agent/status.py <lauf> --verwerfen "Grund"
 ```
 
-Tasten in `review.py`: **j** übernehmen · **n** verwerfen (Grund Pflicht) · **k** verwerfen und als
-bekannte Auffälligkeit in `known_issues` festhalten · **a** abbrechen (nichts gespeichert).
+Tasten in `review.py`: **j** übernehmen · **n** verwerfen (Grund Pflicht) · **k** übernehmen und das
+Datenproblem zusätzlich in `known_issues` festhalten · **a** abbrechen (nichts gespeichert).
 Lehnst du eine Stichprobe ab, zeigt das Skript alle übrigen ✅-Vorschläge.
+
+**Nur die Beschreibungen neu formulieren** (z. B. nach einer Regeländerung, vor dem Review):
+
+```bash
+python3 scripts/agent/beschreibung.py <lauf>                 # Vorschlag: beschreibungen.md (alt/neu), ändert nichts
+python3 scripts/agent/beschreibung.py <lauf> --uebernehmen   # Backup, nur description ersetzt, Auto-Prüfung neu
+```
+Geht nur, solange es keine `review.json` gibt (sonst passt der Fingerabdruck für `apply.py` nicht mehr).
 
 ## Was ein Lauf erzeugt
 
@@ -73,7 +81,10 @@ Status: `neu → geprüft → freigegeben → übertragen`, dazu `erledigt` (ohn
 
 Die Regeln stehen als Spaltenkommentare in der DB und werden von der Auto-Prüfung kontrolliert:
 
-- `description`: genau ein Satz in einfachen Wörtern, höchstens 200 Zeichen, hoher Wert = „mehr davon“
+- `description`: genau ein Satz, höchstens 200 Zeichen, sachlich mit gängigen Fachwörtern (prevalence, share,
+  per capita), keine Alltagssprache; Schwellen und Methode in `key_info`; hoher Wert = „mehr davon“
+- `data_origin`: Beruht der Wert auf einer eigenen Beobachtung dieses Land-Jahres? Ja → Art der Beobachtung,
+  nein → `model_estimate`. Nur wenn eindeutig, sonst leer. Zählt nicht für die Sicherheitsstufe.
 - `key_info`: 1 bis 5 Kernpunkte, jeder belegt; eigene Hinweise beginnen mit „Note:“
 - `producer_definition`: wörtlich aus der Quelle, sonst leer
 - `unit`: nur echte Maßeinheit ohne Wertebereich, bei Indizes/Stufen leer
@@ -99,6 +110,7 @@ Die Übertragung auf die Notion-Seite der Quelle erledigt Claude im Chat. Danach
 | `ask.py` | Einzelne Fragen an die DB stellen (nur lesen) |
 | `check.py`, `review.py`, `apply.py`, `status.py` | Schritte 2 bis 4 und Überblick |
 | `batch.py` | Mehrere Pakete einer Quelle nacheinander (feste Code-Listen, nichts doppelt) |
+| `beschreibung.py` | Nur `description` eines Laufs nach der aktuellen Regel neu formulieren |
 | `lib/tools.py` | Werkzeuge des Agenten (SQL nur lesend, Dateien, Download, PDF-Text) |
 | `lib/selfcheck.py` | Werkzeug `self_check` (Auto-Prüfung für den Agenten) |
 | `lib/checks.py` | Auto-Prüfung (Regeln v3, Belege, Datenauffälligkeiten) |
