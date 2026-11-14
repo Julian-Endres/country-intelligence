@@ -1,0 +1,123 @@
+# Pipeline-Standard (Entwurf)
+
+**Stand:** 14.11.2026 · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
+
+Dieses Dokument ist der eine Ort für den Loader-Standard. Hier steht, was jeder Loader in
+`scripts/pipeline/` können muss und warum. Jede Pflicht hat einen Beleg: einen Fall, in dem
+ihr Fehlen Schaden angerichtet hat, oder eine Entscheidung von Julian. Der Backlog-Eintrag
+#110 führt nur die offene Arbeit.
+
+## 1. Vorgehen
+
+1. **Fälle sammeln:** Loader, die ohnehin angefasst werden, nach dem aktuellen Entwurf neu
+   schreiben. Jeder Fall bekommt einen Abschnitt in Teil 5 (was er gelehrt hat).
+2. **Abbruchkriterium:** Nach **3 Fällen verschiedenen Typs** wird das gemeinsame Modul
+   `scripts/pipeline/lib` gebaut, nicht erst nach allen Backlog-Punkten.
+
+   | Typ | Fall | Stand |
+   |---|---|---|
+   | API | ILO (`load_ilostat.py`) | erledigt 14.11. |
+   | Datei-Download (Excel/CSV) | Kandidaten: Hofstede (#102), V-Dem | offen |
+   | Große relationale Daten | Kandidat: Comtrade (#88) | offen |
+
+3. **Danach:** übrige Loader beim Anfassen auf das Modul umstellen, nicht in einer Massenaktion.
+   Abhängig davon: Ländercodes (CL-105), Rohdaten-Umzug (#135).
+
+## 2. Pflichten je Loader (Entwurf)
+
+Belegt durch einen Fall (Teil 5) oder eine Entscheidung (Teil 6). „ILO“ = hat sich im
+ILO-Loader bewährt.
+
+**Abruf und Rohdaten**
+- P1 **Rohdaten speichern** nach `data/raw/<quelle>/<datum>/`, bevor irgendetwas geprüft wird. Die DB lässt sich so jederzeit gegen eine Lieferung prüfen. (ILO)
+- P2 **0 Bytes / 0 Zeilen sind ein Fehler**, kein leeres Ergebnis. HTTP 200 allein beweist nichts. (ILO, Comtrade)
+- P3 HTTP-Abruf mit User-Agent, Zeitlimit und bis zu 3 Versuchen bei Verbindungsfehlern. (ILO)
+- P4 Kein fester Pfad im Loader; Pfad über eine Zuordnungsdatei im Modul (Kürzel → Ordner, Version, Loader). (Inventur #134)
+
+**Prüfen vor dem Schreiben**
+- P5 **Zwei Stufen:** `--trocken` lädt, speichert, prüft und vergleicht mit der DB, schreibt nichts. Geschrieben wird nur aus gespeicherten, geprüften Rohdaten (`--rohdaten DATUM`). (ILO)
+- P6 **Vergleich mit der DB je Indikator:** neu / Wert geändert / nur Status geändert / gleich / nur in DB. (ILO)
+- P7 Pflichtspalten **je Datensatz**, nicht pauschal; Spalten, nach denen gefiltert wird, müssen da sein. (ILO)
+- P8 **Genau eine Zeile je Land, Indikator, Jahr** nach dem Filter, sonst Abbruch. (ILO; NULL-Dubletten #1)
+- P9 Nicht zugeordnete Länder **namentlich** ausgeben, Aggregate zählen, nichts still verwerfen. (ILO, V-Dem, CL-105)
+- P10 Nicht numerische Werte und nicht jährliche Zeitangaben → Fehler mit Beispiel, kein `except: pass`. (ILO; Freedom House, Comtrade)
+
+**Schreiben**
+- P11 **Alles oder nichts:** ist ein Indikator fehlerhaft, wird nichts geschrieben. Eine Transaktion. (ILO)
+- P12 `ON CONFLICT … DO UPDATE`, nie `DO NOTHING`. (WB #106, ILO)
+- P13 **Beim Schreiben „geändert“ und „unverändert“ getrennt zählen**, wie im Trockenlauf. `RETURNING (xmax = 0)` trennt nur neu/vorhanden; „aktualisiert“ umfasst sonst alle vorhandenen Zeilen. (ILO, siehe 5.1)
+- P14 **Werte, die die Quelle nicht mehr liefert, löscht der Loader nicht.** Er meldet sie; gelöscht wird per Migration mit Liste (Teil 3). (ILO)
+- P15 `source_id` aus `sources` holen; **fehlt die Quelle oder fehlen Metadaten → Abbruch**, nichts anlegen. Name, Einheit, Hierarchie nur in `indicator_metadata`, der Loader überschreibt sie nicht. (ILO, #1, WB-Infrastruktur/#98)
+- P16 `sources.loaded_at` und `loaded_version` setzen. (ILO; Befund: bei den meisten Quellen leer)
+- P17 `indicator_coverage` nach dem Laden auffrischen.
+- P18 `obs_status` wie geliefert (leer → `A`); Flags und Prognosen regelt #86.
+- P19 `time_period`: `static` nur für Eigenschaften ohne Zeitbezug, sonst das Jahr der Ausgabe (Entscheidung Julian 14.11., Spaltenkommentar).
+
+## 3. Muster für Daten-Migrationen (Löschen, Bereinigen)
+
+Bewährt in `sql/05_migrations/2026-11-14_ilo_bereinigung.sql`:
+
+1. Vorher **Backup** der betroffenen Zeilen als CSV nach `backups/` (eigene, nur lesende Datei).
+2. Aufruf mit `psql -v ON_ERROR_STOP=1`, alles in `BEGIN … COMMIT`.
+3. **Kontrollzahlen vorher** in einem `DO`-Block: weicht eine Zahl ab → `RAISE EXCEPTION`, nichts ist geändert.
+4. Löschlisten als CSV per `\copy` in eine `TEMP TABLE … ON COMMIT DROP`; löschen **nur bei unverändertem Wert** (`i.value = z.value_db`).
+5. **Kontrollzahlen nachher** im zweiten `DO`-Block, sonst Abbruch.
+6. `REFRESH MATERIALIZED VIEW indicator_coverage` im selben Skript.
+7. Danach den Trockenlauf des Loaders wiederholen: überall nur „gleich“.
+
+## 4. Vorgehen bei kaputter Quelle
+
+- Erst den **Antwort-Kopf** ansehen (`curl -sS -D kopf.txt`), nie `curl -s` ohne Statuscode und Größe.
+- Bei geänderter Schnittstelle zuerst die **offizielle Client-Bibliothek** der Quelle lesen (ILO: R-Paket Rilostat). Dort steht der gültige Aufruf.
+- Gegenprobe mit einem zweiten Weg (ILO: SDMX), bevor man eine Ursache festschreibt.
+
+## 5. Fälle
+
+### 5.1 ILO, 14.11.2026 (Typ API) · Commit `ca638f6`
+
+**Ausgangslage:** 9 Indikatoren, 22.280 Werte unter `source_id` 59, dazu 56.398 Dubletten ohne
+`source_id` aus einer Juni-Fassung (#1). Bei Analysen immer wieder ein Hindernis.
+
+**Befunde**
+- Die ILO-Schnittstelle (rplumber, hinter Cloudflare) liefert Skripten ohne Browser-User-Agent
+  **HTTP 200 mit 0 Bytes**. Der alte Loader schrieb dann „0 raw rows“ ins Log und lief weiter –
+  er lud seit unbekannter Zeit still nichts. → P2, P3
+- Alter Loader: `DO NOTHING` (Reload änderte nichts), keine Rohdaten, legte Quelle und
+  Metadaten selbst an, verwarf nicht zugeordnete Länder still. → P1, P9, P12, P15
+- ILO-Dateien haben je Datensatz verschiedene Spalten (`classif1`, `sex`, `obs_status` fehlen
+  teils). Die erste, pauschale Spaltenprüfung schlug bei 3 von 9 an. → P7
+- Verdacht „mehrere Erhebungen je Land-Jahr“ widerlegt: Die ILO liefert je Land-Jahr eine Zeile.
+  Die Prüfung P8 bleibt trotzdem Pflicht.
+- Abgleich mit der DB: seit Juni **351 Werte geändert** (darunter 4 Werte genau 4-mal zu hoch,
+  z. B. Ghana 2024 50,5 Mio. statt 12,6 Mio. Erwerbstätige), **259 neu**, **291 zurückgezogen**.
+  → P6, P14
+- Zählfalle: „21.989 aktualisiert“ statt der erwarteten Zahl geänderter Werte, weil `DO UPDATE`
+  jede vorhandene Zeile berührt. → P13
+- Nicht zugeordnet: `KOS` (Kosovo; V-Dem nutzt `XKX`), `ANT`, `CHA` → CL-105.
+
+**Ergebnis:** `load_ilostat.py` neu, DB = ILO-Stand 14.11. (22.248 Werte, 0 ohne `source_id`),
+Backup `backups/2026-11-14_ilo_indicators_vorher.csv`, Belege in
+`scripts/agent/output/2026-11-14_ilo/`. Noch nicht umgesetzt: P13 (Zählung beim Schreiben).
+
+## 6. Befunde aus der Bestandsaufnahme (aus #110 übernommen, Stand 14.11.)
+
+- 10.11.: 16 Dateien in `scripts/pipeline` mit eigener Verbindungsfunktion, kein gemeinsames
+  Modul. WB-Loader mit `DO NOTHING` (Ursache #106), Hofstede #102, Comtrade #88. Comtrade hat
+  keinen Eintrag in `sources` und keinen in `relational_table_metadata` (SELECT 10.11. leer).
+- 14.11.: `load_wb_infrastructure.py` setzt bei `ON CONFLICT` domain/category/dimension mit
+  SIF-v1-Namen ('Economy & Infrastructure') → jeder Reload schreibt alte Domain-Namen zurück
+  (Muster wie #98). → P15; zentrale Taxonomie #103.
+- Inventur 14.11. (#134, `docs/RAW_INVENTUR_2026-11.md`): 31 von 45 in Loadern genannten
+  Rohdaten-Pfaden existieren nicht, 2 Loader mit festem Linux-Pfad, 10 Loader erwarten die
+  Datei als Argument. → P4. Zielstruktur (flach nach Quelle, Zuordnungsdatei, Themen-Ansicht,
+  `INDEX.md`) von Julian entschieden, Umsetzung #135.
+- `sources.loaded_version`/`loaded_at`: nur bei wenigen der 59 Quellen befüllt (u. a. CCP v6,
+  MARPOR 2025a, DDR). → P16
+- Regel `time_period` (Julian 14.11., aus #87): umstellen beim Anfassen: HOFSTEDE (6, Ausgabe
+  2015, mit #102), HENLEY (4), WEF GGGI (5, aus QoG Jan 2025), GLOTTOLOG (3, v5.3),
+  SAMAYO avg_male_height. Später denkbar: Eigenschaften ohne Zeitbezug in eigene Länder-Tabelle
+  (Julian: vorerst nicht). → P19
+- Ursprünglicher Modul-Entwurf (#110): `scripts/pipeline/lib` mit db, http (Retries +
+  Rohdaten-Cache), registry (source_id holen, abbrechen statt anlegen, loaded_at setzen),
+  Logging nach `logs/`. Lauf-Protokoll vorerst nur Log-Dateien, Tabelle `pipeline_runs` erst
+  nach 2–3 Loadern. Bezug: #1, #14, #69, #70, #71, #81, #100, #24.
