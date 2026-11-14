@@ -37,6 +37,12 @@ HINTS = {
     "VDEM": "Die Definitionen stehen im lokalen Codebook vdem_codebook_v16.txt (Referenzordner): je Code mit "
             "search_text nach '(<code ohne VDEM:>)' suchen, dann den Abschnitt mit read_text lesen und mit Datei "
             "und Zeile belegen. Nichts herunterladen; das Codebook reicht.",
+    "GITOC": "Zuerst per sql_query prüfen, welche Jahre (time_period) in der DB stehen, und die passende Index-Ausgabe "
+             "verwenden. Bericht 2023 (Kapitel Methodology, Definitionen der Indikatoren): "
+             "https://globalinitiative.net/wp-content/uploads/2023/09/Global-organized-crime-index-2023-web-compressed-compressed.pdf "
+             "mit download_file laden, pdf_to_text, dann gezielt suchen. Die Originaldatei global_oc_index.xlsx liegt "
+             "nicht lokal vor und xlsx ist nicht lesbar: Länder-Stichprobe gegen Länderwerte im Bericht, wenn dort "
+             "vorhanden, sonst ausdrücklich als nicht möglich vermerken.",
 }
 
 
