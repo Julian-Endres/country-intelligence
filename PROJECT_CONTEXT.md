@@ -1,213 +1,248 @@
 # Project Context — Country Intelligence Layer
 
-**Last updated:** 2026-07-10
+**Last updated:** 2026-11-14 · Figures: exact counts from the live database on 14 Nov 2026 (`sql/03_queries/2026-11-14_readme_kennzahlen.sql`)
 
 ---
 
 ## Vision
 
-A multi-dimensional database aggregating country-level data from 50+ international sources into a unified PostgreSQL system. Long-term goal: an interactive, map-centric platform that gives a comprehensive, intuitive view of any country — economy, geography, culture, institutions, environment, history, and lived experience.
+A multi-dimensional database that brings country-level data from international sources into one PostgreSQL system. Long-term goal: an interactive, map-centric platform that gives a comprehensive, intuitive view of any country — economy, geography, culture, institutions, environment, history, and lived experience.
 
 The project is not a dashboard that shows numbers. It is a system that answers questions.
 
 > "Where is child mortality high?" · "Which regions are the poorest?" · "Where does a country export its raw materials?" · "How has press freedom changed over the last decade?"
 
-Structured around the **Societal Intelligence Framework (SIF v2)** — 10 core domains covering the full complexity of societies. Bolivia (where the project started, during a sabbatical) serves as a recurring analytical anchor throughout, benchmarked against its South American neighbors.
+Bolivia (where the project started, during a sabbatical) serves as a recurring analytical anchor, benchmarked against its South American neighbors.
 
-**Portfolio positioning:** End-to-end data pipeline thinking, scalable database architecture, international analytical perspective, and data storytelling. Target sector: NGO / Impact / International Organizations.
+**Portfolio positioning:** end-to-end data pipeline thinking, database architecture, data quality work with evidence, international analytical perspective. Target sector: NGOs, international organizations.
 
 ---
 
-## Conceptual Framework: SIF v2 — 10 Core Domains
+## Direction (decided 10 Nov 2026)
 
-**v2 restructure (June 2026):** split out *Education, Science & Innovation* and *Infrastructure & Technology* as their own domains (previously folded into Economy), dissolved *Communication & Media* (press freedom → Politics, digital access → Infrastructure), merged *Culture & Identity* + *Social Fabric & Daily Life* into *Culture, Society & Beliefs*.
+| Track | What | Role | Rhythm |
+|---|---|---|---|
+| **1 Database** | PostgreSQL with all sources, metadata, checks | Foundation for everything, built to last | permanent; **now: clean-up** |
+| **2 Platform** | Dashboard, world map, country profiles; API routes underneath; later a search layer ("ask the data") | Main goal, visible layer | continuous, no sprint deadline |
+| **3 Short projects** | One question, 5–10 hours, one presentable result | Results, portfolio, learning on real data | each closed on its own |
 
-| # | Domain | Indicators | Documentation Status |
-|---|--------|-----------|----------------------|
-| 01 | Population & Demographics | ~84 | ✅ Fully documented (4/4 categories) |
-| 02 | Health & Survival | ~121 | ⏳ Data loaded, documentation pending |
-| 03 | Education, Science & Innovation | ~10 | ⏳ Phase 4 (thin, needs UNESCO UIS / OECD PISA / WIPO) |
-| 04 | Economy, Wealth & Labor | ~145 | ✅ 5/7 categories documented + composite scores |
-| 05 | Infrastructure & Technology | ~17 | ⏳ Phase 4 (thin, needs ITU / IRENA / ITF) |
-| 06 | Environment, Climate & Resources | ~77 | ⏳ Data loaded, documentation pending |
-| 07 | Politics, Governance & Law | ~124 | ✅ Fully documented (4/4 categories, incl. UCDP/ACLED conflict data) |
-| 08 | Culture, Society & Beliefs | ~99 | ⏳ Data loaded, documentation pending |
-| 09 | History & Collective Memory | ~10 | ⏳ Stub — strong niche sources (Maddison, COLDAT, COW), thin coverage |
-| 10 | International Relations & Global Integration | ~38 | ⏳ Concept ready — unique sources (UNGA voting, ATOP, KOF), documentation not started |
-| | **Total** | **~725** | **3/10 domains fully documented** |
+**Current focus — clean-up:** create structure, uncover errors, set standards (backlog, database audit, secretary agent, source lists, pipeline standard). The agents do the routine work.
 
-Indicator counts approximate and drift slightly as metadata is refined; see `sql/02_seed/` for the authoritative mapping.
+**Dependencies:** short projects need clean data (priority-1 errors first). The platform builds on the same data and takes finished short-project results as building blocks.
 
-### Data Hierarchy (4 levels)
+This replaces the July plan ("Sprint 2: visualization layer" and the v1.0 definition of done). Domain write-ups for the Notion encyclopedia are no longer a goal of their own; knowledge now grows in source guides (written by the secretary) and short projects.
+
+---
+
+## Where Things Live (one place per truth)
+
+| What | Where |
+|---|---|
+| Data and metadata | The database |
+| Open work | Notion backlog (private). **This file keeps no list of open items.** |
+| Checked and accepted data facts | Table `known_issues` |
+| Working rules | Communication protocol (private project docs) |
+| Loader rules | `docs/PIPELINE_STANDARD.md` |
+| Sources loaded / not loaded | `docs/SOURCES_AVAILABLE.md` / `docs/SOURCES_CANDIDATES.md` |
+| Raw files and which loader reads them | `docs/RAW_INVENTUR_2026-11.md` |
+| Secretary agent | `scripts/agent/README.md` |
+
+---
+
+## Conceptual Framework: SIF v2
+
+**v2 restructure (June 2026):** split out *Education, Science & Innovation* and *Infrastructure & Technology* as their own domains, dissolved *Communication & Media* (press freedom → Politics, digital access → Infrastructure), merged *Culture & Identity* + *Social Fabric & Daily Life* into *Culture, Society & Beliefs*.
+
+| # | Domain | Indicators | Note |
+|---|--------|-----------:|------|
+| 01 | Population & Demographics | 84 | Documented in depth (July 2026) |
+| 02 | Health & Survival | 121 | |
+| 03 | Education, Science & Innovation | 10 | Thin, needs UNESCO UIS / OECD PISA / WIPO |
+| 04 | Economy, Wealth & Labor | 145 | Documented in depth (5/7 categories + composite scores) |
+| 05 | Infrastructure & Technology | 17 | Thin, needs ITU / IRENA / ITF |
+| 06 | Environment, Climate & Resources | 77 | |
+| 07 | Politics, Governance & Law | 124 | Documented in depth (4/4 categories) |
+| 08 | Culture, Society & Beliefs | 99 | |
+| 09 | History & Collective Memory | 10 | Thin; strong niche sources (Maddison, COLDAT, COW) |
+| 10 | International Relations & Global Integration | 38 | Unique sources (UNGA voting, ATOP, KOF) |
+| | **Total** | **725** | |
+
+### Data hierarchy (4 levels)
 
 ```
-Domain        → Large conceptual category (e.g. Politics, Governance & Law)
-  Category    → SIF sub-grouping (e.g. Security & Conflict)
-    Dimension → Thematic cluster (e.g. Armed Conflict)
-      Indicator → Quantifiable signal (e.g. UCDP:battle_deaths)
+Domain        → e.g. Politics, Governance & Law
+  Category    → e.g. Security & Conflict
+    Dimension → e.g. Armed Conflict
+      Indicator → e.g. UCDP:battle_deaths
 ```
 
-The `category` field in `indicator_metadata` represents the SIF hierarchy level — not the original source category. See `docs/SIF_DOMAIN_STRUCTURE.md` for the full category/dimension breakdown per domain.
-
-### Documentation Methodology
-
-Each fully documented domain follows a consistent pattern (established during the Politics domain build-out): source overview → Bolivia time-series trend (with SQL) → South America comparison ranking (with SQL) → critical assessment of what the data actually shows, including corrections to naive expectations → connections to other domains/categories. Full write-ups live in the project's Notion Encyclopedia (private, not linked from this repo).
+Always "Dimension", never "sub-category". The `category` field in `indicator_metadata` is the SIF level, not the source's own category. Full breakdown: `docs/SIF_DOMAIN_STRUCTURE.md` (last updated July 2026).
 
 ---
 
 ## Architecture
 
-### Database: PostgreSQL 18 (WSL2 Ubuntu)
+### Environment
 
-### Core Tables (`public` schema)
+- **Machine:** MacBook (Apple Silicon, macOS) since 25 Oct 2026; before that Windows 11 + WSL2
+- **Database:** PostgreSQL 18.6 (Homebrew), database `country_intelligence`
+- **Python:** 3.14, `venv/` in the project root
+- **Tools:** DBeaver, VS Code, `psql`
+- **Credentials:** only in `.env` (not in git)
+- **Backup:** `scripts/backup_drive.sh`, run by `launchd` every Sunday at 20:00 (`scripts/launchd/de.julian.ci-backup.plist`): `pg_dump` plus raw data to Google Drive
 
-| Table | Description |
-|-------|-------------|
-| `countries` | 249 countries, ISO codes, coordinates, region. PK: `iso_numeric` (ISO 3166-1) |
-| `sources` | 50+ registered data sources |
-| `indicator_metadata` | indicator_code, name, unit, source_id, domain, category, dimension |
-| `indicators` | ~7M+ data values (country × indicator × year). Long format, SDMX-inspired |
-| `indicator_catalog` | all available indicators with coverage metadata |
+### Dependencies
 
-### Relational Schemas
+```mermaid
+flowchart TD
+    countries["countries<br/>249 countries · key iso_numeric"]
+    sources["sources<br/>59 sources"]
+    meta["indicator_metadata<br/>725 codes"]
+    ind["indicators<br/>4,138,872 values"]
+    ki["known_issues<br/>9 entries"]
+    rel["18 relational tables<br/>6 schemas · 11,079,956 rows"]
+    rtm["relational_table_metadata<br/>describes 9 of 18"]
+    cov["indicator_coverage<br/>materialized view"]
 
-| Schema | Tables | Content |
-|--------|--------|---------|
-| `trade` | `trade_products`, `trade_partners` | Comtrade HS-4 flows (5.6M+) + bilateral trade (997k+) |
-| `politics` | `political_parties`, `marpor_elections`, `constitutional_events`, `coups`, `conflicts_state`, `conflicts_state_actors`, `conflicts_nonstate`, `conflicts_onesided`, `conflict_context` | Political history + UCDP armed conflict data + ACLED political violence |
-| `international` | `diplomatic_relations` (DASID), `diplomatic_representation` (DDR), `colonial_history` (COLDAT) | IR relational data |
-| `history` | `ethnic_groups` | EPR ethnic group power relations 1946–2023 |
-| `culture` | `national_dishes`, `country_facts` | Curated cultural reference data |
+    countries --> ind
+    meta --> ind
+    sources --> meta
+    sources --> ind
+    sources --> ki
+    meta --> ki
+    countries --> rel
+    rtm -.-> rel
+    ind --> cov
+```
 
-### Indicator Code Convention
+*Arrow: builds on. Dashed: describes, without a foreign key. An error in `countries` or `sources` affects everything below it. The relational tables hang only on `countries`; they are not yet linked to `sources`.*
+
+### Core tables (`public`)
+
+| Table | Rows | Content |
+|-------|-----:|---------|
+| `countries` | 249 | ISO codes, coordinates, region. PK `iso_numeric` |
+| `sources` | 59 | Publisher, licence, citation, documentation URL, loaded version and date, update frequency, access method |
+| `indicator_metadata` | 725 | See "Metadata format v3" below |
+| `indicators` | 4,138,872 | Long format: `iso_numeric`, `indicator_code`, `source_id`, `time_period`, value, `obs_status` |
+| `known_issues` | 9 | Checked, accepted data facts, tied to a source or code |
+| `relational_table_metadata` | 9 | Grain, join keys, loader, review date of the relational tables |
+| `indicator_coverage` | mat. view | Countries, periods, values per code. **Refresh after every load** |
+| `v_all_metadata`, `v_country_coverage` | views | Helper views |
+| `indicator_catalog` | 4,544 | Search list of WB/WHO indicators **not yet loaded** (snapshot May 2026). Not for names, units or descriptions of loaded indicators |
+
+Of the 59 sources, 41 have values in `indicators` with a `source_id`. 627,967 values have no `source_id` (open clean-up item).
+
+### Relational schemas
+
+| Schema | Tables | Rows | Sources |
+|--------|--------|-----:|---------|
+| `trade` | `trade_products` (8,163,977), `trade_partners` (1,279,868) | 9,443,845 | UN Comtrade, HS-4, 2000–2025, reloaded Nov 2026 with loader v2 |
+| `international` | `diplomatic_relations`, `diplomatic_representation`, `colonial_history` | 1,598,700 | DASID, DDR, COLDAT |
+| `politics` | `conflicts_state`, `conflicts_state_actors`, `conflicts_nonstate`, `conflicts_onesided`, `conflict_context`, `marpor_elections`, `political_parties`, `constitutional_events`, `coups` | 23,677 | UCDP, MARPOR, CCP, Cline Center |
+| `history` | `ethnic_groups` | 10,769 | EPR |
+| `biodiversity` | `species_occurrences` | 2,490 | GBIF (experimental) |
+| `culture` | `country_facts`, `national_dishes` | 475 | Curated reference data |
+
+Rule: a schema is named after the topic of its data. Open question: COLDAT sits in `international` although it belongs to the History domain.
+
+### Metadata format v3 (`indicator_metadata`)
+
+Introduced 9–10 Nov 2026 via `sql/05_migrations/`. The column comments in the database hold the rules; the secretary agent reads them.
+
+| Group | Columns |
+|---|---|
+| Identity | `indicator_code`, `name`, `source_id`, `domain`, `category`, `dimension`, `loader_script`, `status`, `added_at` |
+| Meaning | `description` (exactly one sentence, max. 200 characters, high value = "more of it"), `key_info` (1–5 points), `producer_definition`, `value_labels`, `unit` (only real units) |
+| Interpretation | `direction`, `scale_type`, `scale_min`, `scale_max`, `data_origin`, `temporal_type`, `is_lead_indicator`, `keywords`, `reference` |
+| Review | `metadata_reviewed_at` (set only by `apply.py`) |
+
+Status 14 Nov 2026: 489 codes have a description, **367 are fully reviewed** (WB 251/253, VDEM 59/59, PWT 21/21, UNDP 19/19, GITOC 17/17).
+
+### Indicator code convention
 
 ```
 SOURCE:ORIGINAL_CODE
 Examples: WB:NY.GDP.PCAP.CD · VDEM:v2x_polyarchy · UNDP:hdi · UNVOTE:agree_usa · UCDP:battle_deaths
 ```
 
-**Never invent codes** — always preserve original source codes.
+**Never invent codes**: original source codes are always preserved.
 
-### Design Principles
+### Design principles
 
-- `time_period` as TEXT: supports `"2023"`, `"2023-01"`, `"static"`
-- `source_id` in UNIQUE key — allows parallel storage from multiple sources
+These are the rules. Older loaders do not all follow them yet; they are brought in line when they are touched.
+
+
+- `time_period` as TEXT: `"2023"`, `"2023-01"`, `"static"` (rule for `static` fixed 14 Nov 2026)
+- `source_id` in the UNIQUE key allows parallel storage from several sources. NULL in a unique key breaks the rule, so every value needs a source.
 - `obs_status`: A=actual, E=estimated, P=provisional, F=forecast
-- `ON CONFLICT DO NOTHING` / `DO UPDATE` everywhere — all scripts idempotent and re-runnable
-- No hardcoded credentials — all via `.env` (audited July 2026, confirmed clean across all loaders)
-- Every new table/indicator gets an `indicator_metadata` (or `relational_table_metadata`) entry immediately, not retroactively
+- Loaders are re-runnable and use `ON CONFLICT DO UPDATE`; `DO NOTHING` silently keeps stale values
+- Errors are reported loudly, never swallowed; an empty result is a finding, not a success
+- Every schema change is a dated file in `sql/05_migrations/` with counts before and after
+- Metadata is created together with the data, never afterwards
+- New formats and columns are piloted on a few real cases before they become standard
 
 ---
 
-## Project Structure
+## Who Writes, Who Reads
 
+```mermaid
+flowchart LR
+    loader["Loaders<br/>scripts/pipeline"]
+    db[("country_intelligence")]
+    sec["Secretary agent<br/>role ci_agent_readonly"]
+    check["Automatic check<br/>check.py"]
+    review["review.py<br/>Julian: j / n / k"]
+    apply["apply.py<br/>only writing script"]
+    api["API (FastAPI)"]
+
+    loader --> db
+    db --> sec
+    sec -.->|proposals| check
+    check --> review
+    review --> apply
+    apply --> db
+    db --> api
 ```
-country-intelligence/
-├── scripts/
-│   ├── pipeline/          # Domain-organized loaders (base, wb, economy, health,
-│   │                      # demographics, environment, governance, culture,
-│   │                      # history, international, social)
-│   ├── catalog/           # Indicator catalog + search tools
-│   ├── analysis/          # Export + exploration queries
-│   ├── archive/           # wb_legacy/ — pre-restructure WB bulk loaders, superseded
-│   │                      # by domain-organized loaders but kept for reproducibility
-│   └── experimental/      # WIP scripts, not production: species_gbif_wip.py,
-│                          # vdem_partysystem_wip.py
-├── sql/
-│   ├── 01_setup/          # Table creation
-│   ├── 02_seed/           # Initial data + SIF mapping
-│   ├── 03_queries/        # Exploration + data quality
-│   └── 04_categories/     # Category assignment scripts (one per domain)
-├── api/routes/            # FastAPI routes
-├── docs/                  # PROJECT_CONTEXT, SOURCES_ROADMAP,
-│                          # SOURCES_ENCYCLOPEDIA, SIF_DOMAIN_STRUCTURE
-├── data/raw/               # Raw data files — not in git (~6.6 GB, backup pending)
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+
+Only two paths write to the database: **the loaders** and **`apply.py`**, which Julian starts after `review.py`. The secretary and the API only read.
+
+### Secretary agent (`scripts/agent/`)
+
+Runs on the Claude Agent SDK with Sonnet as the default model. Reads the database as `ci_agent_readonly`, downloads and reads codebooks, and writes proposals with evidence into a run folder (`scripts/agent/output/`, not in git).
+
+| Step | Who | Command | Result |
+|---|---|---|---|
+| 1 Run | Agent | `secretary.py "task" --thema x` or `batch.py` | Proposals, self-check |
+| 2 Automatic check | Script, no AI | automatic (`check.py <run>`) | ✅ / ⚠️ / ❌ per proposal |
+| 3 Review | Julian | `review.py <run>` | yes / no / known issue, saved in `review.json` |
+| 4 Transfer | Julian | `apply.py <run>` | Backup, one transaction, exactly one row per UPDATE, before/after control, undo SQL |
+
+Further tools: `status.py` (overview and next command per run), `ask.py` (questions to the database), `beschreibung.py` (rewrite only the descriptions of a run). Besides metadata, the secretary writes **source guides**, which are published to Notion.
 
 ---
 
-## Tech Stack
+## Pipeline
 
-- **OS:** Windows 11 + WSL2 Ubuntu
-- **Database:** PostgreSQL 18 (TCP on localhost:5432)
-- **Language:** Python 3.14
-- **Key libraries:** psycopg2-binary, requests, pandas, python-dotenv, fastapi, pygbif, openpyxl, pycountry, country_converter
-- **GUI:** DBeaver Community Edition
-- **IDE:** VS Code
+- Loaders live in `scripts/pipeline/<domain>/`.
+- New and reworked loaders follow `docs/PIPELINE_STANDARD.md`: duties P1–P19, a migration pattern, and the ILO loader as the first worked case.
+- After three cases of different types (API, file download, large relational data), a shared module `scripts/pipeline/lib` will be built. Other loaders move over when they are touched next, not in one mass change.
+- Raw data: `data/raw/` holds 469 files, 6.6 GB, inventoried on 14 Nov 2026. Several loaders still point to old paths.
 
-### Setup Notes
-
-- WSL2 + PostgreSQL: `listen_addresses = '*'` in `postgresql.conf` + `pg_hba.conf` modification
-- PostgreSQL needs manual start: `sudo service postgresql start`
-- Python venv: `venv/` in project root
-- **Reproducibility note:** a full from-scratch DB rebuild currently needs both the domain-organized loaders (`scripts/pipeline/`) and, for some early World Bank indicators, the archived legacy loaders in `scripts/archive/wb_legacy/` — this should be consolidated so the domain loaders are self-sufficient.
+**Reproducibility:** a from-scratch rebuild is not yet possible from the repo alone. The relational schemas have no DDL here, and some early World Bank indicators still need `scripts/archive/wb_legacy/`. The working database is restored from the weekly backup.
 
 ---
 
 ## API Layer (FastAPI)
 
-### Route Structure
-
 ```
-GET /api/country/{iso}                          → Country Overview + Top KPIs
-GET /api/country/{iso}/demography               → Domain Overview (Category Cards)
-GET /api/country/{iso}/demography/{category}    → Category Detail + time series
-GET /api/country/{iso}/demography/pyramid       → Age pyramid (34 age groups)
+GET /api/country/{iso}                          → Country overview + top KPIs
+GET /api/country/{iso}/demography               → Domain overview (category cards)
+GET /api/country/{iso}/demography/{category}    → Category detail + time series
+GET /api/country/{iso}/demography/pyramid       → Age pyramid
 GET /api/country/{iso}/timeseries/{indicator}   → Generic time series
-GET /api/country/{iso}/governance               → Governance (flat, not blueprint yet)
-GET /api/country/{iso}/economy                  → Economy (flat, not blueprint yet)
+GET /api/country/{iso}/governance               → Flat, filters on old domain names
+GET /api/country/{iso}/economy                  → Flat, filters on old domain names
 ```
 
-### Three-Level Navigation
-
-```
-Level 1 — Country Overview:   Map + Top KPIs
-Level 2 — Domain Overview:    Category Cards with key indicator + signal
-Level 3 — Category Detail:    All indicators + summary + time series
-```
-
-**Status:** Demography domain fully built on the blueprint pattern. Health, Economy, Governance routes still flat — bringing them to blueprint level is a prerequisite for the visualization layer.
-
----
-
-## Open Items
-
-### Immediate — visualization layer (current focus, Sprint 2)
-
-1. Streamlit dashboard — 3-domain navigation (Demography, Economy, Politics) reusing the existing blueprint pattern
-2. Bolivia country profile as centerpiece
-3. Choropleth world map for 5–10 headline indicators
-4. Bring Health/Economy/Governance API routes to blueprint level
-
-### Data pipeline hygiene
-
-5. Consolidate `scripts/archive/wb_legacy/` into the domain loaders so a from-scratch rebuild doesn't need both (see Setup Notes above)
-6. Resolve two WIP scripts in `scripts/experimental/`: GBIF species-per-country loader, V-Party/WhoGov party-system loader (feeds the still-open "Party System & Election Results" item in Politics)
-7. Auto-descriptions for ~300 indicators without `description` (VDEM, GITOC, UNVOTE, COW, ATOP, FAO_FOOD, GBIF, WVS — via Claude API, not blocking)
-8. ACLED granular event context (Notes column), analogous to the existing UCDP `conflict_context` table
-9. RSF Press Freedom — currently loaded via OWID (ends 2021); load directly from rsf.org for 2022–2025
-
-### Backup (unresolved risk)
-
-10. `data/raw/` is ~6.6 GB, exists only locally, no backup strategy yet. `pg_dump` of the database + upload of `data/raw/` to cloud storage, then a weekly routine.
-
-### Medium term — new sources (frozen until v1.0, see below)
-
-See `SOURCES_ROADMAP.md` for the full prioritized list. Not pulled until they unblock a specific score/chapter.
-
----
-
-## Definition of Done (v1.0)
-
-The project counts as complete for portfolio purposes when:
-
-- [x] Public repo with polished README
-- [ ] Working dashboard with 3 domains + world map
-- [x] 1 domain (Economy) documented in depth with composite scores — plus Population and Politics also complete
-- [ ] 1 published data story (Bolivia — "Anatomy of an Artificial Stability": fixed exchange rate, shrinking reserves, informality, gas dependency)
-- [ ] Reproducible setup (backup + setup docs consolidated)
-
-Everything beyond this (remaining domains at Encyclopedia depth, subnational data, full API coverage) is v1.1+ — not a blocker for the initial portfolio release.
+Navigation concept: Country overview (map + top KPIs) → Domain overview (category cards) → Category detail (all indicators + time series). Demography is built on this blueprint. Governance and Economy still filter on pre-v2 domain names and need to be updated before the platform uses them.
