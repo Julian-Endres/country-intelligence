@@ -1,6 +1,6 @@
 # Pipeline-Standard (Entwurf)
 
-**Stand:** 14.11.2026 · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
+**Stand:** 15.11.2026 · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
 
 Dieses Dokument ist der eine Ort für den Loader-Standard. Hier steht, was jeder Loader in
 `scripts/pipeline/` können muss und warum. Jede Pflicht hat einen Beleg: einen Fall, in dem
@@ -17,7 +17,7 @@ ihr Fehlen Schaden angerichtet hat, oder eine Entscheidung von Julian. Der Backl
    | Typ | Fall | Stand |
    |---|---|---|
    | API | ILO (`load_ilostat.py`) | erledigt 14.11. |
-   | Datei-Download (Excel/CSV) | Kandidaten: Hofstede (#102), V-Dem | offen |
+   | Datei (Excel/CSV) | GHI (`load_ghi.py`) | erledigt 15.11. |
    | Große relationale Daten | Kandidat: Comtrade (#88) | offen |
 
 3. **Danach:** übrige Loader beim Anfassen auf das Modul umstellen, nicht in einer Massenaktion.
@@ -40,12 +40,13 @@ ILO-Loader bewährt.
 - P7 Pflichtspalten **je Datensatz**, nicht pauschal; Spalten, nach denen gefiltert wird, müssen da sein. (ILO)
 - P8 **Genau eine Zeile je Land, Indikator, Jahr** nach dem Filter, sonst Abbruch. (ILO; NULL-Dubletten #1)
 - P9 Nicht zugeordnete Länder **namentlich** ausgeben, Aggregate zählen, nichts still verwerfen. (ILO, V-Dem, CL-105)
+  **Keine unscharfe Suche** (`pycountry.search_fuzzy` o. Ä.): nur exakter, normalisierter Name (Akzente, `&`, Apostroph) oder eine ausdrückliche Liste Name → ISO3. Fehlt ein Land, Abbruch mit Namensliste. (CAF „Columbia“ → Kanada, GHI)
 - P10 Nicht numerische Werte und nicht jährliche Zeitangaben → Fehler mit Beispiel, kein `except: pass`. (ILO; Freedom House, Comtrade)
 
 **Schreiben**
 - P11 **Alles oder nichts:** ist ein Indikator fehlerhaft, wird nichts geschrieben. Eine Transaktion. (ILO)
 - P12 `ON CONFLICT … DO UPDATE`, nie `DO NOTHING`. (WB #106, ILO)
-- P13 **Beim Schreiben „geändert“ und „unverändert“ getrennt zählen**, wie im Trockenlauf. `RETURNING (xmax = 0)` trennt nur neu/vorhanden; „aktualisiert“ umfasst sonst alle vorhandenen Zeilen. (ILO, siehe 5.1)
+- P13 **Beim Schreiben „geändert“ und „unverändert“ getrennt zählen**, wie im Trockenlauf. `RETURNING (xmax = 0)` allein trennt nur neu/vorhanden; „aktualisiert“ umfasst sonst alle vorhandenen Zeilen (ILO, siehe 5.1). **Lösung (GHI, 5.2):** `DO UPDATE … WHERE indicators.value IS DISTINCT FROM EXCLUDED.value OR indicators.obs_status IS DISTINCT FROM EXCLUDED.obs_status` plus `RETURNING (xmax = 0)`: unveränderte Zeilen werden nicht berührt und nicht zurückgegeben.
 - P14 **Werte, die die Quelle nicht mehr liefert, löscht der Loader nicht.** Er meldet sie; gelöscht wird per Migration mit Liste (Teil 3). (ILO)
 - P15 `source_id` aus `sources` holen; **fehlt die Quelle oder fehlen Metadaten → Abbruch**, nichts anlegen. Name, Einheit, Hierarchie nur in `indicator_metadata`, der Loader überschreibt sie nicht. (ILO, #1, WB-Infrastruktur/#98)
 - P16 `sources.loaded_at` und `loaded_version` setzen. (ILO; Befund: bei den meisten Quellen leer)
@@ -98,6 +99,26 @@ Bewährt in `sql/05_migrations/2026-11-14_ilo_bereinigung.sql`:
 **Ergebnis:** `load_ilostat.py` neu, DB = ILO-Stand 14.11. (22.248 Werte, 0 ohne `source_id`),
 Backup `backups/2026-11-14_ilo_indicators_vorher.csv`, Belege in
 `scripts/agent/output/2026-11-14_ilo/`. Noch nicht umgesetzt: P13 (Zählung beim Schreiben).
+
+### 5.2 GHI, 15.11.2026 (Typ Datei) · Backlog #1
+
+**Ausgangslage:** 6.535 Werte ohne `source_id`, 1.618 Land-Jahre, bis zu 6 Zeilen je Land-Jahr.
+
+**Befunde**
+- 7 Loader-Läufe am 28.05. innerhalb von 13 Minuten. Ohne `source_id` greift UNIQUE nicht, `DO NOTHING`
+  fügte bei jedem Lauf alles neu ein. Dasselbe Muster in 6 weiteren Loadern (#1). → P12, P15
+- Der Loader mischte 5 Berichtsausgaben in einem dict; das OWID-Archiv (Bericht 2021) kam zuletzt und
+  überschrieb die neueren Berichte (z. B. DR Kongo 2000: DB 50,6, Bericht 2025 46,1). 103 von 493 Werten
+  wichen vom Bericht 2025 ab. GHI ist laut Herausgeber nur **innerhalb eines Berichts** vergleichbar.
+  → neue Regel: Methodik der Quelle zu Ausgaben/Revisionen prüfen, Ausgaben nicht mischen.
+- „<5“ wurde still zu 2,5. Jetzt 2,5 mit `obs_status` E und known_issue. → P18
+- Ländernamen per `pycountry.search_fuzzy`; derselbe Ansatz machte bei CAF aus „Columbia“ Kanada. → P9
+- Datei-Format kann sich je Ausgabe ändern (Spaltenjahre 2007/2008, 2015/2016). → Kopfzeile prüfen (P7).
+
+**Ergebnis:** `load_ghi.py` neu (Trockenlauf als Standard, `--schreiben`, Kopfzeilen-Prüfung, 17 ausdrückliche
+Zuordnungen, Abbruch bei fehlendem Land, P13-Zählung, `loaded_version` mit sha256 der Datei, Coverage-Refresh).
+DB: 493 Werte (Bericht 2025: 2000/2008/2016/2025), Migration `sql/05_migrations/2026-11-15_ci1_migration2_ghi.sql`,
+Backup `backups/2026-11-15_ci1_null_vorher.csv`. Offen für das Modul: Dateipfad noch als Konstante (P4, #135).
 
 ## 6. Befunde aus der Bestandsaufnahme (aus #110 übernommen, Stand 14.11.)
 

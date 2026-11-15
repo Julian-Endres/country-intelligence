@@ -15,9 +15,9 @@
 --         (angebrochene Jahre, siehe Backlog #95).
 --
 -- Aufruf (Shell, Repo-Wurzel). Die Ausgabe landet in einer Datei, die Claude lesen kann:
---   mkdir -p scripts/agent/output/2026-11-15_readiness
+--   mkdir -p logs/readiness
 --   psql -d country_intelligence -X -f sql/03_queries/2026-11-15_readiness_check.sql \
---        > scripts/agent/output/2026-11-15_readiness/stand_$(date +%Y%m%d_%H%M).txt 2>&1
+--        > logs/readiness/stand_$(date +%Y%m%d_%H%M).txt 2>&1
 --
 -- Aufbau:
 --   Teil 1  Übersicht: eine Zeile je Prüfung mit Ist, Soll und Art.
