@@ -40,6 +40,7 @@ SEARCH_ROOTS = [
     Path.home() / "Dokumente" / "Country-Intelligence",
     Path.home() / "Documents" / "Country-Intelligence",
     Path.home() / "Downloads",
+    REPO_ROOT / "scripts" / "agent" / "output",   # Leitfäden früherer Läufe (nur lesen; 15.11.2026)
 ]
 
 MAX_ROWS = 50
@@ -253,6 +254,10 @@ def _ref_file(name: str) -> Path | None:
         if given.is_file() and any(_inside(given, root) for root in SEARCH_ROOTS):
             return given
         return None
+    if len(given.parts) > 1:                      # Pfad relativ zur Repo-Wurzel, z. B. scripts/agent/output/<lauf>/leitfaden.md
+        p = (REPO_ROOT / given).resolve()
+        if p.is_file() and any(_inside(p, root) for root in SEARCH_ROOTS):
+            return p
     p = REF_DIR / given.name
     return p if p.exists() else None
 

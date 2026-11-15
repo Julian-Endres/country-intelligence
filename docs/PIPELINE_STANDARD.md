@@ -1,6 +1,6 @@
 # Pipeline-Standard (Entwurf)
 
-**Stand:** 15.11.2026 (abends) · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
+**Stand:** 15.11.2026 (spätabends) · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
 
 Dieses Dokument ist der eine Ort für den Loader-Standard. Hier steht, was jeder Loader in
 `scripts/pipeline/` können muss und warum. Jede Pflicht hat einen Beleg: einen Fall, in dem
@@ -19,6 +19,7 @@ ihr Fehlen Schaden angerichtet hat, oder eine Entscheidung von Julian. Der Backl
    | API | ILO (`load_ilostat.py`) | erledigt 14.11. |
    | Datei (Excel/CSV) | GHI (`load_ghi.py`) | erledigt 15.11. |
    | Datei (Excel/CSV), zweiter Fall | POLITY5 (`load_polity5.py`) | erledigt 15.11. |
+   | Datei (CSV), dritter Fall | Hofstede (`load_hofstede.py`) | Code 15.11., Lauf bei Julian offen |
    | Große relationale Daten | Kandidat: Comtrade (#88) | offen |
 
 3. **Danach:** übrige Loader beim Anfassen auf das Modul umstellen, nicht in einer Massenaktion.
@@ -148,6 +149,34 @@ Entsprechung; P13-Zählung; `loaded_version` mit sha256). Migration
 mit den echten Altzeilen: zweiter Schreiblauf „92.439 unverändert“, Migrationen brechen vor dem Loader und
 beim zweiten Lauf ab.
 
+### 5.4 Hofstede, 15.11.2026 (Typ Datei) · Backlog #102
+
+**Ausgangslage:** 293 Werte (6 Codes, 60 Länder, `time_period` 'static'). Der Sekretär hatte am 10.11. beim
+Format-Pilot gemeldet, dass die Werte an falschen Ländern hängen.
+
+**Befunde**
+- Die Datei hat **eigene Kürzel** (Spalte `ctr`), keine ISO-Codes. Der alte Loader fand keine ISO-Spalte
+  und nahm still die **ersten 2 Buchstaben des Ländernamens** als ISO2 (Denmark → DE, Bangladesh → BA = Bosnien,
+  Arab countries → AR = Argentinien). Mit `DO NOTHING` gewann die erste Zeile je Präfix. → P9, P12
+- Abgleich Altbestand gegen die Datei: **144 zufällig richtig, 71 am falschen Land, 78 bei Ländern ohne Wert in
+  der Quelle** (z. B. Bolivien, Afghanistan, Guam). 12 Länder hatten Werte, obwohl die Quelle für sie gar keine hat;
+  53 Länder der Quelle fehlten ganz (u. a. USA, Japan, China). Nach dem Neuladen: 461 Werte, 101 Länder.
+- **Kürzel, die wie ISO3 aussehen, aber ein anderes Land meinen:** BEN (Belgien flämisch, nicht Benin), CAF
+  (Kanada französisch, nicht Zentralafrika), MNG (Montenegro, nicht Mongolei), SLV (Slowenien, nicht El Salvador),
+  MAC (Nordmazedonien, nicht Macau). Eine Zuordnung „Kürzel = ISO3, wenn vorhanden“ wäre still falsch gewesen.
+  → neue Regel: **die feste Liste prüft zusätzlich den Namen**; abweichender Name → Abbruch.
+- Datei enthält 3 Regionen und 7 Teilgruppen eines Landes (Belgium French, South Africa white …). → verwerfen
+  mit Grund, known_issue.
+- Zwei Fassungen auf der Website (ohne Begrenzung und „0-100“). Geladen ist die Hauptfassung wie bisher. → known_issue.
+- Kein Erhebungsjahr: `time_period` '2015' = Ausgabe (P19).
+
+**Ergebnis:** `load_hofstede.py` neu (feste Liste 101 Kürzel → ISO3 mit Namensprüfung, 10 verworfen mit Grund,
+Kopfzeile exakt, Werte ganzzahlig 0–120, P13-Zählung, `loaded_version` mit sha256, Trockenlauf mit Urteil je
+Altwert als CSV). Migration `sql/05_migrations/2026-11-15_hofstede_neu.sql` (293 Altzeilen nach Liste und Wert
+gelöscht, 3 known_issues, Nachher-Stichproben DEU/DNK/USA). Getestet an einer Test-DB aus dem Backup 14.11.:
+Migration bricht vor dem Loader und beim zweiten Lauf ab, zweiter Trockenlauf „461 gleich“, Abbruch bei
+falschem Namen, unbekanntem Kürzel und Wert außerhalb des Bereichs.
+
 ## 6. Befunde aus der Bestandsaufnahme (aus #110 übernommen, Stand 14.11.)
 
 - 10.11.: 16 Dateien in `scripts/pipeline` mit eigener Verbindungsfunktion, kein gemeinsames
@@ -163,7 +192,7 @@ beim zweiten Lauf ab.
 - `sources.loaded_version`/`loaded_at`: nur bei wenigen der 59 Quellen befüllt (u. a. CCP v6,
   MARPOR 2025a, DDR). → P16
 - Regel `time_period` (Julian 14.11., aus #87): umstellen beim Anfassen: HOFSTEDE (6, Ausgabe
-  2015, mit #102), HENLEY (4), WEF GGGI (5, aus QoG Jan 2025), GLOTTOLOG (3, v5.3),
+  2015, mit #102: umgesetzt in `load_hofstede.py`, Fall 5.4), HENLEY (4), WEF GGGI (5, aus QoG Jan 2025), GLOTTOLOG (3, v5.3),
   SAMAYO avg_male_height. Später denkbar: Eigenschaften ohne Zeitbezug in eigene Länder-Tabelle
   (Julian: vorerst nicht). → P19
 - Ursprünglicher Modul-Entwurf (#110): `scripts/pipeline/lib` mit db, http (Retries +
