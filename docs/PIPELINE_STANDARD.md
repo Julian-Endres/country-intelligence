@@ -1,6 +1,6 @@
 # Pipeline-Standard (Entwurf)
 
-**Stand:** 15.11.2026 · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
+**Stand:** 15.11.2026 (abends) · **Status:** Entwurf, wächst an echten Fällen · Offene Arbeit: Notion-Backlog #110
 
 Dieses Dokument ist der eine Ort für den Loader-Standard. Hier steht, was jeder Loader in
 `scripts/pipeline/` können muss und warum. Jede Pflicht hat einen Beleg: einen Fall, in dem
@@ -18,6 +18,7 @@ ihr Fehlen Schaden angerichtet hat, oder eine Entscheidung von Julian. Der Backl
    |---|---|---|
    | API | ILO (`load_ilostat.py`) | erledigt 14.11. |
    | Datei (Excel/CSV) | GHI (`load_ghi.py`) | erledigt 15.11. |
+   | Datei (Excel/CSV), zweiter Fall | POLITY5 (`load_polity5.py`) | erledigt 15.11. |
    | Große relationale Daten | Kandidat: Comtrade (#88) | offen |
 
 3. **Danach:** übrige Loader beim Anfassen auf das Modul umstellen, nicht in einer Massenaktion.
@@ -41,6 +42,7 @@ ILO-Loader bewährt.
 - P8 **Genau eine Zeile je Land, Indikator, Jahr** nach dem Filter, sonst Abbruch. (ILO; NULL-Dubletten #1)
 - P9 Nicht zugeordnete Länder **namentlich** ausgeben, Aggregate zählen, nichts still verwerfen. (ILO, V-Dem, CL-105)
   **Keine unscharfe Suche** (`pycountry.search_fuzzy` o. Ä.): nur exakter, normalisierter Name (Akzente, `&`, Apostroph) oder eine ausdrückliche Liste Name → ISO3. Fehlt ein Land, Abbruch mit Namensliste. (CAF „Columbia“ → Kanada, GHI)
+  **Codes der Quelle nur über eine vollständige, ausdrückliche Liste** (Quell-Code → ISO3 oder → verwerfen mit Grund), keine Kette aus Paket + Ersatztabelle. Ein Code, der in keiner Liste steht → Abbruch. **Die Quelle bestimmt die Einheit:** Führt sie einen Staat nach Teilung/Vereinigung unter neuem Code, ist das eine eigene Einheit und wird nicht auf das heutige Land gelegt (bis CL-105 historische Einheiten kennt: verwerfen, dokumentieren). (POLITY5, 5.3)
 - P10 Nicht numerische Werte und nicht jährliche Zeitangaben → Fehler mit Beispiel, kein `except: pass`. (ILO; Freedom House, Comtrade)
 
 **Schreiben**
@@ -119,6 +121,32 @@ Backup `backups/2026-11-14_ilo_indicators_vorher.csv`, Belege in
 Zuordnungen, Abbruch bei fehlendem Land, P13-Zählung, `loaded_version` mit sha256 der Datei, Coverage-Refresh).
 DB: 493 Werte (Bericht 2025: 2000/2008/2016/2025), Migration `sql/05_migrations/2026-11-15_ci1_migration2_ghi.sql`,
 Backup `backups/2026-11-15_ci1_null_vorher.csv`. Offen für das Modul: Dateipfad noch als Konstante (P4, #135).
+
+### 5.3 POLITY5, 15.11.2026 (Typ Datei) · Backlog #1, #89
+
+**Ausgangslage:** 101.643 Werte ohne `source_id`, 569 Land/Code/Jahr-Paare doppelt, 3.216 Sondercodes
+(-66/-77/-88) als Werte in democ, autoc, xconst, polcomp.
+
+**Befunde**
+- Länderzuordnung über das Paket `countrycode` plus Ersatztabelle `COW_FALLBACK`. Wo das Paket nichts fand,
+  griff die Tabelle mit **geratenen ISO-Codes**: Baden → Barbados (BAD→BRB), Modena → Moldau, Sardinien →
+  Saudi-Arabien, Parma → Panama, Zentralamerika (UPC) → Uganda. Dasselbe Muster wie Hofstede (#102). → P9
+- DDR und BRD beide → DEU, Nord- und Südjemen → YEM usw. Polity selbst führt bei Teilung/Vereinigung
+  **neue Einheiten mit eigenem Code** (Handbuch v2018, Anhang A); die Quelle hat in Grenzjahren
+  (DEU 1945 und 1990, Äthiopien 1993) zwei Einheiten. Zusammenlegen erzeugt Dubletten. → P8, P9
+- Sondercodes nur bei polity2 ausgeschlossen. Polity ersetzt sie in polity2 selbst; in den übrigen Codes
+  sind sie keine Skalenwerte. → nicht laden, je Code zählen, known_issue.
+- Der Sekretär kann `.xls` nicht lesen: Leitfaden ohne Länder-Stichprobe; die Prüffragen wurden direkt an
+  der Datei beantwortet (Backlog-Eintrag 15.11.).
+- Kontrolle: Alle 92.439 neuen Werte waren gleich dem Altbestand (kein Wert verschoben, nur aufgeräumt).
+
+**Ergebnis:** `load_polity5.py` neu (feste Liste: 166 scodes → ISO3, 28 verworfen mit Grund; Abbruch bei
+unbekanntem scode und bei Überlappung; Trockenlauf mit Verworfen-Liste und CSV des Altbestands ohne
+Entsprechung; P13-Zählung; `loaded_version` mit sha256). Migration
+`sql/05_migrations/2026-11-15_ci1_migration3_polity5.sql` (101.643 gelöscht, 3 known_issues), danach
+`indicators.source_id` NOT NULL (`2026-11-15_indicators_source_id_not_null.sql`). Getestet an einer Test-DB
+mit den echten Altzeilen: zweiter Schreiblauf „92.439 unverändert“, Migrationen brechen vor dem Loader und
+beim zweiten Lauf ab.
 
 ## 6. Befunde aus der Bestandsaufnahme (aus #110 übernommen, Stand 14.11.)
 
