@@ -1,7 +1,11 @@
 -- =============================================================================
--- Readiness-Check DB v1.0 (v2, 15.11.2026)
+-- Readiness-Check DB v1.0 (v3, 15.11.2026)
 -- Misst die sechs Prüfpunkte des Meilensteins "DB v1.0". Liest nur, ändert nichts
 -- (die Sitzung wird auf read only gesetzt).
+--
+-- Änderungen v3 (15.11. abends): R4.2 zählt Codes ohne unit nur, wenn scale_type eine Einheit braucht.
+--         Bei index, ordinal, binary, categorical ist unit laut Metadaten-Regel v3 bewusst NULL
+--         (secretary.py); vorher stieg R4.2 mit jedem korrekten Metadaten-Lauf (POLITY5: +5).
 --
 -- Änderungen v2 (nach dem ersten Lauf 14:42):
 --   R1.5  Jahre mit 1–4 Ziffern sind gültig (MADDISON hat echte Jahre 1 und 730).
@@ -196,8 +200,9 @@ pruefungen (punkt, id, pruefung, ist, soll, art) AS (
     SELECT 4, 'R4.1', 'Aktive Codes ohne description',
            (SELECT count(*) FROM m WHERE coalesce(trim(description), '') = ''), 0, 'Pflicht'
     UNION ALL
-    SELECT 4, 'R4.2', 'Aktive Codes ohne unit',
-           (SELECT count(*) FROM m WHERE coalesce(trim(unit), '') = ''), 0, 'Pflicht'
+    SELECT 4, 'R4.2', 'Aktive Codes ohne unit (ohne index/ordinal/binary/categorical)',
+           (SELECT count(*) FROM m WHERE coalesce(trim(unit), '') = ''
+              AND coalesce(scale_type, '') NOT IN ('index', 'ordinal', 'binary', 'categorical')), 0, 'Pflicht'
     UNION ALL
     SELECT 4, 'R4.3', 'Aktive Codes ohne direction',
            (SELECT count(*) FROM m WHERE direction IS NULL), NULL, 'Info'
@@ -435,7 +440,8 @@ GROUP BY 1, 2, 3 ORDER BY 1, 2, 3;
 \echo '--- R4 Metadaten-Lücken je Quelle (aktive Codes)'
 SELECT s.short_code, count(*) AS codes,
        count(*) FILTER (WHERE coalesce(trim(x.description), '') = '') AS ohne_description,
-       count(*) FILTER (WHERE coalesce(trim(x.unit), '') = '')        AS ohne_unit,
+       count(*) FILTER (WHERE coalesce(trim(x.unit), '') = ''
+                          AND coalesce(x.scale_type, '') NOT IN ('index', 'ordinal', 'binary', 'categorical')) AS ohne_unit,
        count(*) FILTER (WHERE x.direction IS NULL)                     AS ohne_direction,
        count(*) FILTER (WHERE x.scale_type IS NULL)                    AS ohne_scale_type,
        count(*) FILTER (WHERE x.data_origin IS NULL)                   AS ohne_data_origin,
@@ -443,7 +449,9 @@ SELECT s.short_code, count(*) AS codes,
 FROM indicator_metadata x LEFT JOIN sources s ON s.id = x.source_id
 WHERE x.status = 'active'
 GROUP BY 1
-HAVING count(*) FILTER (WHERE coalesce(trim(x.description), '') = '' OR coalesce(trim(x.unit), '') = ''
+HAVING count(*) FILTER (WHERE coalesce(trim(x.description), '') = ''
+                           OR (coalesce(trim(x.unit), '') = ''
+                               AND coalesce(x.scale_type, '') NOT IN ('index', 'ordinal', 'binary', 'categorical'))
                            OR x.metadata_reviewed_at IS NULL) > 0
 ORDER BY 3 DESC, 4 DESC;
 
