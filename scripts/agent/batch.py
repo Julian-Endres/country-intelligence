@@ -42,9 +42,17 @@ HINTS = {
            "shortpop, longpop, shortage, longage, unit, source, method) und wid_readme.md (Aufbau der Variablen-Codes: "
            "Typ-Buchstabe + Konzept + Alter + Bevölkerungseinheit). Der Indikator-Code ist WID:<variable>:<perzentil>; "
            "je Variable mit search_text nach ';<variable>;' suchen, dann read_text, mit Datei und Zeile belegen. "
-           "unit und source sind länderspezifisch (Währung): nur DE belegt, Einheit allgemein formulieren (Landeswährung). "
+           "unit, source, method und extrapolation können länderspezifisch sein (Währung, Datengrundlage und Jahre gelten für DE): "
+           "daraus keine key_info und keine allgemeinen Aussagen ableiten, Einheit allgemein formulieren (Landeswährung). "
            "Länder-Stichprobe gegen wid_data_<LAND>.csv (DE, US, BO, NG, JP; Spalten country;variable;percentile;year;value;age;pop), "
            "search_text nach ';<variable>;<perzentil>;<jahr>;'. Nichts herunterladen.",
+    "ILO": "Der Leitfaden steht im Lauf scripts/agent/output/2026-11-15_1403_sekretaer_ilo_leitfaden (leitfaden.md, leitfaden_belege.md, befunde.md): "
+           "zuerst lesen, dort stehen Definitionen und Befunde. Die Rohdateien der Lieferung 14.11.2026 liegen in data/raw/ilo/2026-11-14/ (eine CSV je Indikator), "
+           "der API-Katalog und das obs_status-Woerterbuch im Referenzordner. ilostat.ilo.org liefert HTTP 403: nicht erneut versuchen, "
+           "Methodik nur aus dem Leitfaden und dem Katalog belegen, sonst als nicht geprueft kennzeichnen. In der DB steht nur die Gesamtscheibe je Land und Jahr. "
+           "Beachte: ILO:HOW_TEMP_SEX_ECO_NB ist Durchschnitt Wochenstunden je Beschaeftigtem (nicht millions of hours), Einheit hours. "
+           "obs_status A in der DB heisst vermutlich kein Flag, das nicht als Adjusted in key_info schreiben. 2026 und 2027 bei HOW_2TOT sind unbelegt (Projektion?). "
+           "EAR_EHRA ist in Landeswaehrung. Laenderstichprobe gegen die CSVs (BOL, DEU, USA, JPN, NGA). scale_max nur setzen, wenn die DB-Werte es hergeben (sql_query max).",
     "GITOC": "Zuerst per sql_query prüfen, welche Jahre (time_period) in der DB stehen, und die passende Index-Ausgabe "
              "verwenden. Bericht 2023 (Kapitel Methodology, Definitionen der Indikatoren): "
              "https://globalinitiative.net/wp-content/uploads/2023/09/Global-organized-crime-index-2023-web-compressed-compressed.pdf "
