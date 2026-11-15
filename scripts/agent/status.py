@@ -46,6 +46,9 @@ def counts(run_dir) -> str:
     if rv:
         e = [d["entscheidung"] for d in rv["entscheidungen"]]
         parts.append(f"j{e.count(decisions.J)} n{e.count(decisions.N)} k{e.count(decisions.K)}")
+    st = runs.read_status(run_dir) or {}
+    if any(str(v.get("notiz", "")).startswith("ABGEBROCHEN") for v in st.get("verlauf", [])):
+        parts.append("⚠️ ABGEBROCHEN")      # #141: unvollständiger Lauf, vor review.py ansehen
     return "  ".join(parts)
 
 

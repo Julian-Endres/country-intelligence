@@ -37,12 +37,20 @@ HINTS = {
     "VDEM": "Die Definitionen stehen im lokalen Codebook vdem_codebook_v16.txt (Referenzordner): je Code mit "
             "search_text nach '(<code ohne VDEM:>)' suchen, dann den Abschnitt mit read_text lesen und mit Datei "
             "und Zeile belegen. Nichts herunterladen; das Codebook reicht.",
+    "WID": "Definitionen stehen lokal im Referenzordner: wid_metadata_DE.csv (Auszug aus WID_metadata_DE.csv, "
+           "Semikolon-getrennt, eine Zeile je Variable; Felder shortname, simpledes, technicaldes, shorttype, longtype, "
+           "shortpop, longpop, shortage, longage, unit, source, method) und wid_readme.md (Aufbau der Variablen-Codes: "
+           "Typ-Buchstabe + Konzept + Alter + Bevölkerungseinheit). Der Indikator-Code ist WID:<variable>:<perzentil>; "
+           "je Variable mit search_text nach ';<variable>;' suchen, dann read_text, mit Datei und Zeile belegen. "
+           "unit und source sind länderspezifisch (Währung): nur DE belegt, Einheit allgemein formulieren (Landeswährung). "
+           "Länder-Stichprobe gegen wid_data_<LAND>.csv (DE, US, BO, NG, JP; Spalten country;variable;percentile;year;value;age;pop), "
+           "search_text nach ';<variable>;<perzentil>;<jahr>;'. Nichts herunterladen.",
     "GITOC": "Zuerst per sql_query prüfen, welche Jahre (time_period) in der DB stehen, und die passende Index-Ausgabe "
              "verwenden. Bericht 2023 (Kapitel Methodology, Definitionen der Indikatoren): "
              "https://globalinitiative.net/wp-content/uploads/2023/09/Global-organized-crime-index-2023-web-compressed-compressed.pdf "
-             "mit download_file laden, pdf_to_text, dann gezielt suchen. Die Originaldatei global_oc_index.xlsx liegt "
-             "nicht lokal vor und xlsx ist nicht lesbar: Länder-Stichprobe gegen Länderwerte im Bericht, wenn dort "
-             "vorhanden, sonst ausdrücklich als nicht möglich vermerken.",
+             "mit download_file laden, pdf_to_text, dann gezielt suchen. Die Originaldaten liegen als CSV im Referenzordner: gitoc_2025_dataset.csv, "
+             "gitoc_2023_dataset.csv, gitoc_2021_dataset.csv (aus global_oc_index.xlsx exportiert, eine Zeile je Land). "
+             "Länder-Stichprobe gegen diese Dateien (search_text nach dem Ländernamen, read_text), mit Datei und Zeile belegen.",
 }
 
 
@@ -176,6 +184,8 @@ def main() -> None:
         print(f"  {r['run_dir'].name}: {r.get('subtype')}, {cost}, "
               f"✅ {c.get('OK', 0)}  ⚠️  {c.get('ANSEHEN', 0)}  ❌ {c.get('FEHLER', 0)}")
     print("Weiter mit:  python3 scripts/agent/status.py   (dann review.py und apply.py je Lauf)")
+    if any(r.get("subtype") != "success" for r in done):
+        sys.exit("Mindestens ein Lauf endete nicht regulär (siehe oben, status.py zeigt ABGEBROCHEN). Exit-Code 1.")
 
 
 if __name__ == "__main__":

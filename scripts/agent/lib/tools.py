@@ -185,7 +185,9 @@ async def download_file(args: dict[str, Any]) -> dict[str, Any]:
     if target.exists():
         return _text(f"Datei existiert bereits: {target}")
     try:
-        with requests.get(url, stream=True, timeout=60, headers={"User-Agent": "country-intelligence-agent"}) as r:
+        # Browser-Kennung: manche Server (z. B. ILO/Cloudflare) liefern sonst HTTP 200 mit 0 Bytes (14.11.)
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Safari/605.1.15"
+        with requests.get(url, stream=True, timeout=60, headers={"User-Agent": ua}) as r:
             r.raise_for_status()
             size = 0
             tmp = target.with_suffix(target.suffix + ".part")
@@ -197,6 +199,9 @@ async def download_file(args: dict[str, Any]) -> dict[str, Any]:
                         tmp.unlink()
                         return _text(f"FEHLER: Datei größer als {MAX_DOWNLOAD_MB} MB, abgebrochen.")
                     f.write(chunk)
+            if size == 0:
+                tmp.unlink()
+                return _text(f"FEHLER: Leere Antwort (HTTP {r.status_code}, 0 Bytes). Nichts gespeichert.")
             tmp.rename(target)
         if target.suffix.lower() == ".json":
             # API-Antworten oft in einer Zeile: lesbar formatieren, damit Belege sinnvolle Zeilennummern haben

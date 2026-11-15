@@ -189,26 +189,34 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
     print(f"\nAuftrag: {task}\nLauf-Ordner: {run_dir}\nBudget: {budget} USD, max. {max_turns} Turns\n")
     summary, stats, result = "", "", {"subtype": "abgebrochen", "kosten": None}
     models: set[str] = set()     # welches Modell tatsächlich geantwortet hat (für Vergleiche)
-    async for message in query(prompt=task, options=options):
-        if isinstance(message, AssistantMessage):
-            if getattr(message, "model", None):
-                models.add(message.model)
-            for block in message.content:
-                if isinstance(block, ToolUseBlock):
-                    name = block.name.replace("mcp__ci__", "")
-                    arg = block.input.get("sql") or block.input.get("pattern") or block.input.get("filename") \
-                        or block.input.get("url") or block.input.get("query") or block.input.get("name_contains") \
-                        or block.input.get("pdf_path") or ""
-                    print(f"[{name}] {str(arg)[:160]}")
-                elif isinstance(block, TextBlock) and block.text.strip():
-                    print(f"\n[Sekretär] {block.text.strip()[:500]}\n")
-        elif isinstance(message, ResultMessage):
-            summary = message.result or ""
-            cost = f"{message.total_cost_usd:.2f} USD" if message.total_cost_usd is not None else "unbekannt"
-            modell = ", ".join(sorted(models)) or "unbekannt"
-            result = {"subtype": message.subtype, "kosten": message.total_cost_usd, "turns": message.num_turns,
-                      "modell": modell}
-            stats = f"Status: {message.subtype}, Modell: {modell}, Turns: {message.num_turns}, Dauer: {message.duration_ms / 60000:.1f} min, Kosten (rechnerisch): {cost}"
+    fehler = ""
+    try:
+        async for message in query(prompt=task, options=options):
+            if isinstance(message, AssistantMessage):
+                if getattr(message, "model", None):
+                    models.add(message.model)
+                for block in message.content:
+                    if isinstance(block, ToolUseBlock):
+                        name = block.name.replace("mcp__ci__", "")
+                        arg = block.input.get("sql") or block.input.get("pattern") or block.input.get("filename") \
+                            or block.input.get("url") or block.input.get("query") or block.input.get("name_contains") \
+                            or block.input.get("pdf_path") or ""
+                        print(f"[{name}] {str(arg)[:160]}")
+                    elif isinstance(block, TextBlock) and block.text.strip():
+                        print(f"\n[Sekretär] {block.text.strip()[:500]}\n")
+            elif isinstance(message, ResultMessage):
+                summary = message.result or ""
+                cost = f"{message.total_cost_usd:.2f} USD" if message.total_cost_usd is not None else "unbekannt"
+                modell = ", ".join(sorted(models)) or "unbekannt"
+                result = {"subtype": message.subtype, "kosten": message.total_cost_usd, "turns": message.num_turns,
+                          "modell": modell}
+                stats = f"Status: {message.subtype}, Modell: {modell}, Turns: {message.num_turns}, Dauer: {message.duration_ms / 60000:.1f} min, Kosten (rechnerisch): {cost}"
+
+    except Exception as e:      # z. B. Nutzungslimit (claude_agent_sdk), Netz – laut melden, Lauf markieren (#141)
+        fehler = f"{type(e).__name__}: {e}"
+        result = {"subtype": "abgebrochen", "kosten": None, "fehler": fehler}
+        stats = f"Status: abgebrochen, Fehler: {fehler}"
+        print(f"\n!!! LAUF ABGEBROCHEN: {fehler}\n")
 
     print("=" * 60)
     print(summary)
@@ -233,6 +241,11 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
         print(f"Bericht: {run_dir / 'pruefung.md'}")
     else:
         print("\nKeine Vorschlags-SQL in diesem Lauf, Auto-Prüfung entfällt.")
+    if result.get("subtype") != "success":
+        # Status bleibt, wie er ist (Rettung per review/apply bleibt möglich), aber mit deutlicher Notiz (#141)
+        runs.set_status(run_dir, (runs.read_status(run_dir) or {}).get("status", "neu"), f"ABGEBROCHEN ({result.get('subtype')}): {fehler or 'kein regulärer Abschluss'}. "
+                                         "Unvollständig: self_check/befunde.md können fehlen.")
+        print(f"\n!!! Lauf als ABGEBROCHEN markiert: {run_dir.name}")
     result["run_dir"] = run_dir
     result["pruefung"] = [r["anzahl"] for r in results] if results else []
     return result
