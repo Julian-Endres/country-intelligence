@@ -79,6 +79,32 @@ HINTS = {
                 "#NULL! = kein Wert): search_text nach 'GER;Germany;', 'USA;U.S.A.;', 'JPN;Japan;', 'BRA;Brazil;', 'NIG;Nigeria;' und mit dem "
                 "DB-Wert vergleichen (DB: DEU 276, USA 840, JPN 392, BRA 076, NGA 566). Bolivien hat keinen Hofstede-Wert (frueher faelschlich "
                 "die Werte von Bosnien). Die Kuerzel der Datei sind keine ISO-Codes. Nichts herunterladen (WebFetch der 6D-Seite ist erlaubt).",
+    "EDELMAN": "Zuerst den Leitfaden lesen: read_text mit dem Pfad scripts/agent/output/2026-11-19_1227_sekretaer_edelman_leitfaden/leitfaden.md "
+               "(danach leitfaden_belege.md und befunde.md im selben Ordner). Loader: scripts/pipeline/social/load_edelman.py (read_text). "
+               "Wortlaut fuer producer_definition: Zeile 1 der Rohdateien data/raw/social/Edelman/data-edelman-trust-institute(N).csv "
+               "(Frage, 9-Punkte-Skala, 'top 4 box, trust'); Belegdatei und Zeile angeben. Der Wert ist der Anteil der Befragten mit Vertrauen "
+               "in Prozent; time_period ist das Ausgabejahr (Feldzeit meist im Herbst davor, nur fuer 2025 belegt). Die Gruppen (Alter, "
+               "Geschlecht, Einkommen niedrig/mittel/hoch) sind laut Leitfaden nur teilweise definiert: nichts erfinden, Offenes in key_info als Note. "
+               "edelman.com antwortet per WebFetch oft mit 403, deshalb nicht dort suchen.",
+    "FAO_FOOD": "Zuerst den Leitfaden lesen: read_text mit dem Pfad scripts/agent/output/2026-11-19_1242_sekretaer_fao_food_leitfaden/leitfaden.md "
+                "(danach leitfaden_belege.md und befunde.md). Loader lesen: scripts/pipeline/health/load_fao_food.py (kcal_per_capita, "
+                "protein_per_capita, fat_per_capita: Item 'Grand Total', Elemente siehe ELEMENTS) und scripts/pipeline/health/load_fao_food_groups.py "
+                "(26 Gruppen-Codes: FAO-Item je Code im Dict ITEMS, Element 'Food supply quantity (kg/capita/yr)'). Der FAO-Itemname aus ITEMS "
+                "gehoert in key_info und ist der Beleg fuer die Zuordnung. Food Balance Sheets messen das Angebot (food supply), nicht den Verzehr. "
+                "In der DB nur 2010-2023 (neue FBS-Methodik). Die ZIP-Datei nicht oeffnen. Bekannt aus befunde.md, nicht erneut untersuchen: "
+                "Japan fehlt, obs_status ueberall 'A'.",
+    "KOF": "Zuerst den Leitfaden lesen: read_text mit dem Pfad scripts/agent/output/2026-11-19_1247_sekretaer_kof_leitfaden/leitfaden.md "
+           "(danach leitfaden_belege.md und befunde.md). Loader: scripts/pipeline/international/load_kof.py (Datei "
+           "kof_data_export_2026-05-28_22_06_58.xlsx, Spalten ch.kof.globidx.v2020.<code>.<iso3>, also die kombinierten Indizes ohne _df/_dj). "
+           "Pruef im Loader, ob die Spaltennamen 'v2020' die Ausgabe bezeichnen, und sag es in key_info, wenn es offen bleibt. Definitionen aus "
+           "data/raw/reference/kof_gygli2019_revisited.txt bzw. kofgi_method.txt und kofgi_2025_variables.txt (falls nur als PDF vorhanden: "
+           "pdf_to_text). Skala 1-100, Normierung ueber alle Laender und Jahre.",
+    "OWID_CO2": "Zuerst den Leitfaden lesen: read_text mit dem Pfad scripts/agent/output/2026-11-19_1253_sekretaer_owid_co2_leitfaden/leitfaden.md "
+                "(danach leitfaden_belege.md und befunde.md). Loader: scripts/pipeline/economy/load_owid_co2.py (laedt die Live-CSV von GitHub, "
+                "Spaltenzuordnung in VARIABLES). producer_definition woertlich aus dem OWID-Codebuch "
+                "https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-codebook.csv (download_file, Spalte description; "
+                "falls der Lauf das Codebuch schon im Referenzordner abgelegt hat, dieses nehmen). Territoriale Emissionen; co2 ohne Landnutzung. "
+                "Die geladene Fassung ist nicht dokumentiert (loaded_version leer), das ist bekannt.",
     "GITOC": "Zuerst per sql_query prüfen, welche Jahre (time_period) in der DB stehen, und die passende Index-Ausgabe "
              "verwenden. Bericht 2023 (Kapitel Methodology, Definitionen der Indikatoren): "
              "https://globalinitiative.net/wp-content/uploads/2023/09/Global-organized-crime-index-2023-web-compressed-compressed.pdf "
@@ -149,6 +175,24 @@ def candidates(source: str, domain: str | None) -> list[tuple[str, str]]:
         conn.close()
 
 
+BELEG_REGEL = (" Belegdateien ausserhalb des Referenzordners (z. B. Loader unter scripts/pipeline/, Rohdaten unter data/raw/) "
+               "im Beleg mit dem Pfad ab Repo-Wurzel angeben, nicht nur mit dem Dateinamen, sonst findet die Auto-Pruefung sie nicht.")
+
+
+def leitfaden_hint(source: str) -> str:
+    """Ohne eigenen HINTS-Eintrag: auf den neuesten Leitfaden-Lauf der Quelle verweisen (19.11.2026)."""
+    root = runs.OUTPUT_ROOT
+    cands = sorted(d for d in root.glob(f"*_sekretaer_{source.lower()}_leitfaden") if (d / "leitfaden.md").exists())
+    if not cands:
+        print(f"Hinweis: kein HINTS-Eintrag und kein Leitfaden-Lauf fuer {source} gefunden, Auftrag ohne Quellenhinweis.")
+        return ""
+    rel = cands[-1].relative_to(root.parent.parent.parent)
+    print(f"Leitfaden fuer {source}: {rel}")
+    return (f"Zuerst den Leitfaden lesen: read_text mit dem Pfad {rel}/leitfaden.md, danach leitfaden_belege.md und "
+            f"befunde.md im selben Ordner. Dort stehen Loader, Rohdateien, Belege und bekannte Befunde; den Loader unter "
+            f"scripts/pipeline/ selbst lesen. Was in befunde.md schon steht, nicht erneut untersuchen.")
+
+
 def task_for(source: str, codes: list[str], nr: int, defs_file: str | None = None,
              missing: list[str] | None = None) -> str:
     if defs_file:
@@ -159,7 +203,8 @@ def task_for(source: str, codes: list[str], nr: int, defs_file: str | None = Non
             hint += (f" Nicht darin enthalten sind: {', '.join(missing)}; dafür einzeln "
                      f"https://api.worldbank.org/v2/indicator/<CODE>?format=json mit download_file holen.")
     else:
-        hint = HINTS.get(source, "")
+        hint = HINTS.get(source) or leitfaden_hint(source)
+    hint += BELEG_REGEL
     return (f"{source} Metadaten v3, Paket {nr}: Beschreibe genau diese {len(codes)} Indikatoren "
             f"(keine anderen): {', '.join(codes)}. {hint} "
             "Schreibe metadata.sql (alle 14 Felder, self_check vor dem Abschluss) und befunde.md mit "

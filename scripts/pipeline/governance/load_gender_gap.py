@@ -8,8 +8,8 @@ Indicators:
   WEF:gggi_ggi — Overall Gender Gap Index (0-1)
   WEF:gggi_eas — Educational Attainment subindex
   WEF:gggi_hss — Health & Survival subindex
-  WEF:gggi_pes — Economic Participation subindex
-  WEF:gggi_pos — Political Empowerment subindex
+  WEF:gggi_pes — Political Empowerment subindex (QoG-Codebuch Jan25 Z. 31636; bis 23.11.2026 hier vertauscht)
+  WEF:gggi_pos — Economic Participation and Opportunity subindex (QoG-Codebuch Jan25 Z. 31656)
 
 Run: python3 scripts/pipeline/governance/load_gender_gap.py
 """
@@ -50,8 +50,8 @@ INDICATORS = [
     ('WEF:gggi_ggi', 'gggi_ggi', 'Global Gender Gap Index (Overall)',              'Politics & Governance',  'Rule of Law & Rights',          'Gender & Political Equality'),
     ('WEF:gggi_eas', 'gggi_eas', 'Gender Gap: Educational Attainment subindex',    'Population & Demographics', 'Education & Literacy',         'Gender & Education'),
     ('WEF:gggi_hss', 'gggi_hss', 'Gender Gap: Health & Survival subindex',         'Health, Body & Behavior',   'Survival & Mortality',         'Gender & Health'),
-    ('WEF:gggi_pes', 'gggi_pes', 'Gender Gap: Economic Participation subindex',    'Economy & Infrastructure',  'Labour & Employment',          'Gender & Labour'),
-    ('WEF:gggi_pos', 'gggi_pos', 'Gender Gap: Political Empowerment subindex',     'Politics & Governance',  'Democracy & Elections',         'Gender & Political Equality'),
+    ('WEF:gggi_pes', 'gggi_pes', 'Gender Gap: Political Empowerment subindex',     'Politics & Governance',  'Democracy & Elections',         'Gender & Political Equality'),
+    ('WEF:gggi_pos', 'gggi_pos', 'Gender Gap: Economic Participation subindex',    'Economy & Infrastructure',  'Labour & Employment',          'Gender & Labour'),
 ]
 
 for code, col, name, domain, category, dimension in INDICATORS:

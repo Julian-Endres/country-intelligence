@@ -41,6 +41,7 @@ SEARCH_ROOTS = [
     Path.home() / "Documents" / "Country-Intelligence",
     Path.home() / "Downloads",
     REPO_ROOT / "scripts" / "agent" / "output",   # Leitfäden früherer Läufe (nur lesen; 15.11.2026)
+    REPO_ROOT / "scripts" / "pipeline",   # Loader lesen (nur lesen; 19.11.2026, Entscheidung Julian)
 ]
 
 MAX_ROWS = 50

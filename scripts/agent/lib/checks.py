@@ -134,15 +134,18 @@ def _frags(text: str) -> list[str]:
 
 def verify_beleg(m: re.Match, ref_cache: dict, what: str) -> tuple[str, list[str], dict]:
     """Prüft einen Beleg-Kommentar gegen den Referenztext."""
-    fname = Path(m.group("file").strip()).name
+    given = m.group("file").strip()
+    fname = Path(given).name
     nums = [int(x) for x in re.findall(r"\d+", m.group("lines"))]
     quote = m.group("quote")
     page = int(m.group("page")) if m.group("page") else None
     info = {"datei": fname, "seite": page, "zeilen": nums, "zitat": quote}
-    ref_path = tools.REF_DIR / fname
-    if not ref_path.exists():
-        return FAIL, [f"{what}: Referenzdatei {fname} nicht gefunden"], info
-    ref = ref_cache.setdefault(fname, RefText(ref_path))
+    # Gleiche Regel wie die Lesewerkzeuge (tools._ref_file): Name im Referenzordner oder Pfad ab Repo-Wurzel
+    # innerhalb der Suchordner (z. B. scripts/pipeline/..., data/raw/...). 19.11.2026
+    ref_path = tools._ref_file(given)
+    if ref_path is None:
+        return FAIL, [f"{what}: Referenzdatei {given} nicht gefunden"], info
+    ref = ref_cache.setdefault(str(ref_path), RefText(ref_path))
     frags = _frags(quote)
     if not frags:
         return WARN, [f"{what}: Zitat zu kurz für eine automatische Prüfung"], info
