@@ -179,10 +179,19 @@ BELEG_REGEL = (" Belegdateien ausserhalb des Referenzordners (z. B. Loader unter
                "im Beleg mit dem Pfad ab Repo-Wurzel angeben, nicht nur mit dem Dateinamen, sonst findet die Auto-Pruefung sie nicht.")
 
 
+# Quellen, die sich einen Leitfaden teilen (ein Loader, eine Bezugsdatei) (23.11.2026)
+LEITFADEN_ALIAS = {"EI": "owid_energy", "EMBER": "owid_energy", "EIA": "owid_energy"}
+
+
 def leitfaden_hint(source: str) -> str:
     """Ohne eigenen HINTS-Eintrag: auf den neuesten Leitfaden-Lauf der Quelle verweisen (19.11.2026)."""
     root = runs.OUTPUT_ROOT
-    cands = sorted(d for d in root.glob(f"*_sekretaer_{source.lower()}_leitfaden") if (d / "leitfaden.md").exists())
+    name = LEITFADEN_ALIAS.get(source, source.lower())
+    # nur regulär beendete Läufe (abgebrochene können einen halben leitfaden.md haben), keine verworfenen (23.11.2026)
+    cands = sorted(d for d in root.glob(f"*_sekretaer_{name}_leitfaden")
+                   if (d / "leitfaden.md").exists() and (d / "protokoll.md").exists()
+                   and "Status: success" in (d / "protokoll.md").read_text(encoding="utf-8")
+                   and (runs.read_status(d) or {}).get("status") != "verworfen")
     if not cands:
         print(f"Hinweis: kein HINTS-Eintrag und kein Leitfaden-Lauf fuer {source} gefunden, Auftrag ohne Quellenhinweis.")
         return ""

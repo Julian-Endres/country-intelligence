@@ -148,7 +148,10 @@ n_rel_only = len(rel_codes - set(A))
 L = []
 L.append("# Sources – available")
 L.append("")
-L.append("**As of:** 2026-11-10 · Figures from `sql/03_queries/2026-11-10_quelleninventar.sql` · Counterpart: `SOURCES_CANDIDATES.md`")
+_m = re.search(r"(\d{4}-\d{2}-\d{2})", INV.split("/")[-1])  # Stand = Datum im Namen der Inventar-Datei (23.11.2026)
+if not _m:
+    sys.exit("Inventar-Datei braucht das Datum im Namen (JJJJ-MM-TT_quelleninventar.txt), sonst ist der Stand unbekannt.")
+L.append(f"**As of:** {_m.group(1)} · Figures from `sql/03_queries/2026-11-10_quelleninventar.sql` · Counterpart: `SOURCES_CANDIDATES.md`")
 L.append("")
 L.append("## Summary")
 L.append("")

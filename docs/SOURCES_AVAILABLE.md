@@ -1,10 +1,10 @@
 # Sources – available
 
-**As of:** 2026-11-10 · Figures from `sql/03_queries/2026-11-10_quelleninventar.sql` · Counterpart: `SOURCES_CANDIDATES.md`
+**As of:** 2026-11-23 · Figures from `sql/03_queries/2026-11-10_quelleninventar.sql` · Counterpart: `SOURCES_CANDIDATES.md`
 
 ## Summary
 
-The database holds **59 sources in `sources`**, 49 of them with values (4,195,302 values in `indicators`), plus **18 relational tables** with 8,508,875 rows; **7 sources exist only as relational tables** (no codes in `indicators`). The status column points to the Notion backlog, where the explanation lives.
+The database holds **59 sources in `sources`**, 49 of them with values (4,123,794 values in `indicators`), plus **18 relational tables** with 11,079,956 rows; **7 sources exist only as relational tables** (no codes in `indicators`). The status column points to the Notion backlog, where the explanation lives.
 
 Status: ✅ usable · ⚠️ usable with a known issue · ❌ not usable
 
@@ -22,7 +22,7 @@ Status: ✅ usable · ⚠️ usable with a known issue · ❌ not usable
 | `FAO_FOOD_GRP` | FAOSTAT Food Balance Sheets – Food Groups | 26 | 61,683 | 178 | 2010–2023 | – | ✅ | `health/load_fao_food_groups.py` |
 | `UNDP` | UN Development Programme | 19 | 37,456 | 195 | 1990–2024 | 03, 04, 08 | ⚠️ NaN values in MPI (#85) | `demographics/load_undp.py` |
 | `FAO_FOOD` | FAOSTAT Food Balance Sheets | 3 | 7,233 | 178 | 2010–2023 | – | ✅ | `health/load_fao_food.py` |
-| `GHI` | Global Hunger Index – Concern Worldwide / Welthungerhilfe | 1 | 6,535 | 131 | 2000–2025 | – | ⚠️ values without source_id, duplicate rows (#1) | `health/load_ghi.py` |
+| `GHI` | Global Hunger Index – Concern Worldwide / Welthungerhilfe | 1 | 493 | 126 | 2000–2025 | – | ⚠️ values without source_id, duplicate rows (#1) | `health/load_ghi.py` |
 
 ## 03 · Education, Science & Innovation
 
@@ -37,13 +37,13 @@ Status: ✅ usable · ⚠️ usable with a known issue · ❌ not usable
 | `WB` | World Bank | 253 | 1,118,104 | 216 | 1963–2025 | 01, 02, 05, 06, 07 | ⚠️ outdated vintage (#106), poverty lines mislabelled (#91) | `several (#14)` |
 | `WID` | WID.world — World Inequality Database | 38 | 274,558 | 215 | 1800–2024 | 06 | ⚠️ values without source_id (#1) | `economy/load_wid.py` |
 | `PWT` | Penn World Table 11.0 – GGDC Groningen | 21 | 211,399 | 185 | 1950–2023 | 01 | ⚠️ values without source_id (#1) | `economy/load_pwt.py` |
-| `ILO` | ILOSTAT – International Labour Organization | 9 | 78,678 | 229 | 2000–2027 | – | ⚠️ duplicate rows without source_id (#1), projections up to 2027 (#86) | `economy/load_ilostat.py` |
+| `ILO` | ILOSTAT – International Labour Organization | 9 | 22,248 | 225 | 2000–2027 | – | ⚠️ duplicate rows without source_id (#1), projections up to 2027 (#86) | `economy/load_ilostat.py` |
 
 Relational tables:
 
 | Code | Source | Tables | Rows | Period | Status | Loader |
 |---|---|---|---|---|---|---|
-| `COMTRADE` | UN Comtrade (goods by HS4, trading partners) | `trade.trade_products`, `trade.trade_partners` | 6,872,764 | 2000–2025 | ⚠️ incomplete, USA/FRA/IND/NOR/CHE missing (#88), table metadata not linked (#81) | `economy/load_comtrade_v2.py` |
+| `COMTRADE` | UN Comtrade (goods by HS4, trading partners) | `trade.trade_products`, `trade.trade_partners` | 9,443,845 | 2000–2025 | ⚠️ incomplete, USA/FRA/IND/NOR/CHE missing (#88), table metadata not linked (#81) | `economy/load_comtrade_v2.py` |
 
 ## 05 · Infrastructure & Technology
 
@@ -79,7 +79,7 @@ Lost:
 | Code | Source | Codes | Values | Countries | Period | Also in | Status | Loader |
 |---|---|---|---|---|---|---|---|---|
 | `VDEM` | V-Dem Institute | 59 | 1,126,533 | 175 | 1900–2025 | – | ⚠️ open findings (#6) | `governance/load_vdem.py` |
-| `POLITY5` | Polity5 – Center for Systemic Peace | 6 | 101,643 | 168 | 1776–2020 | – | ⚠️ values without source_id (#1), special codes stored as values (#89) | `governance/load_polity5.py` |
+| `POLITY5` | Polity5 – Center for Systemic Peace | 6 | 92,439 | 166 | 1776–2020 | – | ⚠️ values without source_id (#1), special codes stored as values (#89) | `governance/load_polity5.py` |
 | `FH` | Freedom House | 3 | 15,930 | 193 | 1972–2024 | – | ⚠️ FH:STATUS has no data (#63) | `governance/load_freedom_house.py` |
 | `ACLED` | Armed Conflict Location & Event Data Project | 5 | 13,917 | 243 | 1997–2026 | – | ✅ API authentication changed (#66) | `governance/load_acled.py` |
 | `UNODC` | UN Office on Drugs and Crime | 4 | 10,806 | 228 | 1990–2026 | – | ⚠️ partly loaded via OWID (#2), no loader in repo (#69) | – |
@@ -113,8 +113,8 @@ Relational tables:
 | `UNESCO_ICH` | UNESCO Intangible Cultural Heritage | 3 | 1,717 | 157 | 2008–2025 | – | ✅ | `culture/load_unesco_ich.py` |
 | `SAMAYO` | samayo/country-json | 5 | 956 | 236 | static | 02, 06, 09 | ✅ static (#87), unofficial source | `culture/load_samayo.py`, `load_national_dishes.py` |
 | `GLOTTOLOG` | Glottolog 5.3 | 3 | 732 | 244 | static | – | ✅ static (#87) | `culture/load_glottolog.py` |
+| `HOFSTEDE` | Hofstede Cultural Dimensions | 6 | 461 | 101 | 2015–2015 | – | ❌ values assigned to wrong countries (#102) | `culture/load_hofstede.py` |
 | `UNESCO_WHC` | UNESCO World Heritage Centre | 4 | 461 | 170 | 2024–2024 | – | ✅ | `culture/load_unesco_whc.py` |
-| `HOFSTEDE` | Hofstede Cultural Dimensions | 6 | 293 | 60 | static | – | ❌ values assigned to wrong countries (#102) | `culture/load_hofstede.py` |
 | `OLYMPICS` | Olympic Games – OWID | 0 | 0 | 0 | – | – | ❌ data lost (#9) | `culture/load_olympics.py` |
 
 Relational tables:
