@@ -27,7 +27,7 @@ OWID_URL = "https://raw.githubusercontent.com/owid/energy-data/master/owid-energ
 INDICATORS = [
     # Geography & Environment — Strommix
     ("fossil_share_energy",    "EI:fossil_share_energy",    "Fossil fuels share of primary energy (%)",          "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EI"),
-    ("renewables_share_energy","EMBER:renewables_share_energy","Renewables share of primary energy (%)",          "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EMBER"),
+    ("renewables_share_energy","EI:renewables_share_energy","Renewables share of primary energy (%)",          "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EI"),
     ("solar_share_elec",       "EMBER:solar_share_elec",    "Solar share of electricity generation (%)",         "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EMBER"),
     ("wind_share_elec",        "EMBER:wind_share_elec",     "Wind share of electricity generation (%)",          "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EMBER"),
     ("hydro_share_elec",       "EMBER:hydro_share_elec",    "Hydropower share of electricity generation (%)",   "Geography & Environment", "Climate & Emissions", "Emissions & Climate", "%",    "EMBER"),
