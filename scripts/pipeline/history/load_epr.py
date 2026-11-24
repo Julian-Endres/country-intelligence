@@ -14,6 +14,10 @@ Aggregated indicators use only direct EPR entries (successors have own data).
 Run:
   python3 scripts/pipeline/history/load_epr.py
 """
+# CI-172 (24.11.2026): gesperrt, weil die Länderzuordnung unscharf ist (Fuzzy, Paket oder Teilstring).
+# Freigabe erst nach Umstellung auf die zentrale Länderzuordnung (scripts/pipeline/lib/laender.py), nur mit Julian.
+raise SystemExit("CI-172: Loader gesperrt (unscharfe Länderzuordnung). Freigabe erst nach Umstellung auf scripts/pipeline/lib/laender.py.")
+
 
 import requests
 import psycopg2

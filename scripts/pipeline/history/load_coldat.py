@@ -89,6 +89,9 @@ def resolve(name, iso3_map, name_map):
     return None
 
 def main():
+    # CI-172 (24.11.2026): gesperrt, weil die Länderzuordnung unscharf ist (Fuzzy, Paket oder Teilstring).
+    # Freigabe erst nach Umstellung auf die zentrale Länderzuordnung (scripts/pipeline/lib/laender.py), nur mit Julian.
+    raise SystemExit("CI-172: Loader gesperrt (unscharfe Länderzuordnung). Freigabe erst nach Umstellung auf scripts/pipeline/lib/laender.py.")
     log.info("=== COLDAT Loader ===")
     conn = get_conn()
     iso3_map, name_map = build_maps(conn)

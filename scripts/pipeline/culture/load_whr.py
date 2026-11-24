@@ -57,6 +57,9 @@ def setup_source_and_metadata(cur):
     return source_id
 
 def main():
+    # CI-172 (24.11.2026): gesperrt, weil die Länderzuordnung unscharf ist (Fuzzy, Paket oder Teilstring).
+    # Freigabe erst nach Umstellung auf die zentrale Länderzuordnung (scripts/pipeline/lib/laender.py), nur mit Julian.
+    raise SystemExit("CI-172: Loader gesperrt (unscharfe Länderzuordnung). Freigabe erst nach Umstellung auf scripts/pipeline/lib/laender.py.")
     parser = argparse.ArgumentParser(description="World Happiness Report Loader")
     parser.add_argument("file", help="Pfad zur WHR Excel-Datei")
     args = parser.parse_args()
