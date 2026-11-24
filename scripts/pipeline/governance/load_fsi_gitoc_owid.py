@@ -3,7 +3,8 @@ load_new_sources_batch.py
 Lädt alle neuen Quellen in einem Script.
 
 Quellen:
-- OWID CSVs: Alkohol, Tabak, Drogen, Migration, Gefängnis, Mord, Armut, Militär, Jugendarbeitslosigkeit, Stadtbevölkerung
+- OWID CSVs (Bezugsweg OWID, Werte unter der Quelle des Urhebers): WHO Alkohol/Tabak/Drogen, UNODC Gefängnis/Mord,
+  SIPRI Militärausgaben. Stand 24.11.2026 (CI-171). FSI/GITOC-Teil unverändert, Neubau mit #151.
 - Fragile States Index (Excel)
 - World Bank Stability & Secrecy (Excel)
 - GI-TOC Global Organized Crime Index (Excel)
@@ -30,11 +31,6 @@ def get_db_connection():
 # ── Quellen-Definitionen ─────────────────────────────────────────────────────
 
 SOURCES = {
-    "OWID_SOCIAL": (
-        "OWID – Social & Health Indicators",
-        "https://ourworldindata.org",
-        "Alcohol, tobacco, drugs, prison, homicide, migration, poverty, military, youth unemployment"
-    ),
     "FSI": (
         "Fragile States Index (Fund for Peace)",
         "https://fragilestatesindex.org",
@@ -49,111 +45,43 @@ SOURCES = {
 
 # ── OWID CSV Definitionen ────────────────────────────────────────────────────
 
+# Regel 24.11.2026 (CI-171, #2): Präfix = Urheber, Bezugsweg OWID steht in indicator_metadata.reference.
+# Die Werte gehören zur Quelle des Urhebers ("source"), nicht zu OWID_SOCIAL.
+# Nicht mehr geladen (bewusst, 24.11.):
+#   migration_stock, urban_share, youth_unemployment -> direkt über WB (SM.POP.TOTL, SP.URB.TOTL.IN.ZS, SL.UEM.1524.ZS)
+#   poverty_3_day -> deprecated, Doppelung zu WB:SI.POV.DDAY (#8)
 OWID_FILES = [
-    {
-        "path": "data/raw/owid_alcohol_consumption_per_capita.csv",
-        "value_col": "Alcohol consumption",
-        "indicator_code": "OWID_SOCIAL:alcohol_per_capita",
-        "name": "Alcohol Consumption per Capita",
-        "unit": "liters pure alcohol",
-        "category": "Health, Body & Behavior",
-    },
-    {
-        "path": "data/raw/owid_alcohol_binge_drinking.csv",
-        "value_col": "Alcohol, heavy episodic drinking (15+), drinkers only, past 30 days (%) - Sex: both sexes",
-        "indicator_code": "OWID_SOCIAL:binge_drinking",
-        "name": "Binge Drinking Prevalence (15+)",
-        "unit": "%",
-        "category": "Health, Body & Behavior",
-    },
-    {
-        "path": "data/raw/owid_tobacco_prevalence.csv",
-        "value_col": "Age-standardized prevalence of current tobacco use among persons aged 15 years and older, by sex (%) - Both sexes",
-        "indicator_code": "OWID_SOCIAL:tobacco_prevalence",
-        "name": "Tobacco Use Prevalence (15+)",
-        "unit": "%",
-        "category": "Health, Body & Behavior",
-    },
-    {
-        "path": "data/raw/owid_drug_deaths_who.csv",
-        "value_col": "Total deaths from mental and substance use disorders among both sexes",
-        "indicator_code": "OWID_SOCIAL:drug_deaths",
-        "name": "Deaths from Substance Use Disorders",
-        "unit": "deaths",
-        "category": "Health, Body & Behavior",
-    },
-    {
-        "path": "data/raw/owid_prison_population_rate.csv",
-        "value_col": "Prison population rate",
-        "indicator_code": "OWID_SOCIAL:prison_rate",
-        "name": "Prison Population Rate (per 100k)",
-        "unit": "per 100k",
-        "category": "Politics & Governance",
-    },
-    {
-        "path": "data/raw/owid_prison_occupancy_capacity.csv",
-        "value_col": "Prison capacity percent",
-        "indicator_code": "OWID_SOCIAL:prison_occupancy",
-        "name": "Prison Occupancy Rate (% of capacity)",
-        "unit": "%",
-        "category": "Politics & Governance",
-    },
-    {
-        "path": "data/raw/owid_homicide_rate.csv",
-        "value_col": "Homicide rate per 100,000 population",
-        "indicator_code": "OWID_SOCIAL:homicide_rate",
-        "name": "Homicide Rate (per 100k)",
-        "unit": "per 100k",
-        "category": "Politics & Governance",
-    },
-    {
-        "path": "data/raw/owid_homicide_count.csv",
-        "value_col": "Homicides",
-        "indicator_code": "OWID_SOCIAL:homicide_count",
-        "name": "Homicide Count",
-        "unit": "count",
-        "category": "Politics & Governance",
-    },
-    {
-        "path": "data/raw/owid_migration_stock_total.csv",
-        "value_col": "Total number of international immigrants",
-        "indicator_code": "OWID_SOCIAL:migration_stock",
-        "name": "International Migrant Stock",
-        "unit": "persons",
-        "category": "Population & Demographics",
-    },
-    {
-        "path": "data/raw/owid_youth_unemployment.csv",
-        "value_col": "Unemployment rate, ages 15-24",
-        "indicator_code": "OWID_SOCIAL:youth_unemployment",
-        "name": "Youth Unemployment Rate (15-24)",
-        "unit": "%",
-        "category": "Economy & Infrastructure",
-    },
-    {
-        "path": "data/raw/owid_urban_population_share.csv",
-        "value_col": "Urban",
-        "indicator_code": "OWID_SOCIAL:urban_share",
-        "name": "Urban Population Share",
-        "unit": "%",
-        "category": "Population & Demographics",
-    },
-    {
-        "path": "data/raw/owid_poverty_headcount.csv",
-        "value_col": "Share of population in poverty ($3 a day)",
-        "indicator_code": "OWID_SOCIAL:poverty_3_day",
-        "name": "Poverty Headcount Ratio ($3/day)",
-        "unit": "%",
-        "category": "Economy & Infrastructure",
-    },
-    {
-        "path": "data/raw/sipri_military_expenditure.csv",
-        "value_col": "Military expenditure (% of GDP)",
-        "indicator_code": "OWID_SOCIAL:military_expenditure",
-        "name": "Military Expenditure (% of GDP)",
-        "unit": "% of GDP",
-        "category": "Politics & Governance",
-    },
+    {"path": "data/raw/health/owid_alcohol_consumption_per_capita.csv", "value_col": "Alcohol consumption",
+     "indicator_code": "WHO:alcohol_per_capita", "source": "WHO",
+     "name": "Alcohol Consumption per Capita", "unit": "liters pure alcohol", "category": "Health, Body & Behavior"},
+    {"path": "data/raw/health/owid_alcohol_binge_drinking.csv",
+     "value_col": "Alcohol, heavy episodic drinking (15+), drinkers only, past 30 days (%) - Sex: both sexes",
+     "indicator_code": "WHO:binge_drinking", "source": "WHO",
+     "name": "Binge Drinking Prevalence (15+)", "unit": "%", "category": "Health, Body & Behavior"},
+    {"path": "data/raw/health/owid_tobacco_prevalence.csv",
+     "value_col": "Age-standardized prevalence of current tobacco use among persons aged 15 years and older, by sex (%) - Both sexes",
+     "indicator_code": "WHO:tobacco_prevalence", "source": "WHO",
+     "name": "Tobacco Use Prevalence (15+)", "unit": "%", "category": "Health, Body & Behavior"},
+    {"path": "data/raw/health/owid_drug_deaths_who.csv",
+     "value_col": "Total deaths from mental and substance use disorders among both sexes",
+     "indicator_code": "WHO:drug_deaths", "source": "WHO",
+     "name": "Deaths from Substance Use Disorders", "unit": "deaths", "category": "Health, Body & Behavior"},
+    {"path": "data/raw/governance/owid_prison_population_rate.csv", "value_col": "Prison population rate",
+     "indicator_code": "UNODC:prison_rate", "source": "UNODC",
+     "name": "Prison Population Rate (per 100k)", "unit": "per 100k", "category": "Politics & Governance"},
+    {"path": "data/raw/governance/owid_prison_occupancy_capacity.csv", "value_col": "Prison capacity percent",
+     "indicator_code": "UNODC:prison_occupancy", "source": "UNODC",
+     "name": "Prison Occupancy Rate (% of capacity)", "unit": "%", "category": "Politics & Governance"},
+    {"path": "data/raw/governance/owid_homicide_rate.csv", "value_col": "Homicide rate per 100,000 population",
+     "indicator_code": "UNODC:homicide_rate", "source": "UNODC",
+     "name": "Homicide Rate (per 100k)", "unit": "per 100k", "category": "Politics & Governance"},
+    {"path": "data/raw/governance/owid_homicide_count.csv", "value_col": "Homicides",
+     "indicator_code": "UNODC:homicide_count", "source": "UNODC",
+     "name": "Homicide Count", "unit": "count", "category": "Politics & Governance"},
+    # SIPRI über OWID: Code in der DB heißt SIPRI:milex_gdp (nicht OWID_SOCIAL:military_expenditure)
+    {"path": "data/raw/governance/sipri_military_expenditure.csv", "value_col": "Military expenditure (% of GDP)",
+     "indicator_code": "SIPRI:milex_gdp", "source": "SIPRI",
+     "name": "Military Expenditure (% of GDP)", "unit": "% of GDP", "category": "Politics & Governance"},
 ]
 
 # FSI Indikatoren
@@ -210,6 +138,14 @@ def ensure_source(cur, short_code):
     cur.execute("SELECT id FROM sources WHERE short_code = %s", (short_code,))
     return cur.fetchone()[0]
 
+def existing_source_id(cur, short_code):
+    """Quelle muss schon existieren (WHO, UNODC, SIPRI). Kein stilles Anlegen."""
+    cur.execute("SELECT id FROM sources WHERE short_code = %s", (short_code,))
+    row = cur.fetchone()
+    if not row:
+        raise RuntimeError(f"Quelle {short_code} fehlt in sources – Abbruch, nichts anlegen")
+    return row[0]
+
 def ensure_indicator(cur, code, name, unit, source_id, category):
     cur.execute("""
         INSERT INTO indicator_metadata (indicator_code, name, unit, source_id, category)
@@ -226,26 +162,21 @@ def insert_value(cur, iso_numeric, indicator_code, source_id, value, year):
 
 # ── Loaders ──────────────────────────────────────────────────────────────────
 
-def load_owid_csvs(cur, conn, source_id, country_map_iso3):
+def load_owid_csvs(cur, conn, country_map_iso3):
     total = 0
     for cfg in OWID_FILES:
         path = cfg["path"]
         if not os.path.exists(path):
-            print(f"  ⏭️  Nicht gefunden: {path}")
-            continue
+            raise FileNotFoundError(f"OWID-Datei fehlt: {path}")
+        source_id = existing_source_id(cur, cfg["source"])
 
         ensure_indicator(cur, cfg["indicator_code"], cfg["name"], cfg["unit"], source_id, cfg["category"])
 
-        try:
-            df = pd.read_csv(path, low_memory=False)
-        except Exception as e:
-            print(f"  ❌ {path}: {e}")
-            continue
+        df = pd.read_csv(path, low_memory=False)   # Lesefehler -> Abbruch, nicht still weiter
 
         value_col = cfg["value_col"]
         if value_col not in df.columns:
-            print(f"  ❌ Spalte nicht gefunden: {value_col} in {path}")
-            continue
+            raise KeyError(f"Spalte nicht gefunden: {value_col} in {path}")
 
         count = 0
         for _, row in df.iterrows():
@@ -399,10 +330,8 @@ def main():
         }
         country_map_name.update({k: v for k, v in NAME_OVERRIDES.items() if v})
 
-        print("\n=== OWID Social & Health CSVs ===")
-        source_id_owid = ensure_source(cur, "OWID_SOCIAL")
-        conn.commit()
-        total_owid = load_owid_csvs(cur, conn, source_id_owid, country_map_iso3)
+        print("\n=== OWID-Bezug (WHO, UNODC, SIPRI) ===")
+        total_owid = load_owid_csvs(cur, conn, country_map_iso3)
 
         print("\n=== Fragile States Index ===")
         total_fsi = load_fsi(cur, conn, country_map_name)

@@ -6,7 +6,7 @@ Source:  samayo/country-json (GitHub)
 Domain:  Culture & Identity → Cultural Production → Food Culture
 
 Stores as text in a new table culture.national_dishes
-Also creates a simple indicator: CULTURE:has_national_dish (1/0)
+Also creates a simple indicator: SAMAYO:has_national_dish (1/0)
 
 Run: python3 scripts/pipeline/culture/load_national_dishes.py
 """
@@ -65,7 +65,7 @@ cur.execute("""
         (indicator_code, name, source_id, domain, category, dimension, unit)
     VALUES (%s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (indicator_code) DO NOTHING
-""", ('CULTURE:has_national_dish', 'Has recognized national dish (1=yes)',
+""", ('SAMAYO:has_national_dish', 'Has recognized national dish (1=yes)',
       source_id, 'Culture & Identity', 'Cultural Production', 'Food Culture', 'binary'))
 conn.commit()
 
@@ -126,7 +126,7 @@ for entry in data:
             (iso_numeric, indicator_code, source_id, value, time_period, obs_status)
         VALUES (%s, %s, %s, %s, %s, 'A')
         ON CONFLICT (iso_numeric, indicator_code, source_id, time_period) DO NOTHING
-    """, (iso_numeric, 'CULTURE:has_national_dish', source_id, has_dish, 'static'))
+    """, (iso_numeric, 'SAMAYO:has_national_dish', source_id, has_dish, 'static'))
     if cur.rowcount > 0:
         inserted_indicators += 1
 

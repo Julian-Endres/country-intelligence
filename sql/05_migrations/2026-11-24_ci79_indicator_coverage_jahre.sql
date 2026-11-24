@@ -1,4 +1,4 @@
--- ENTWURF (nicht ausgeführt, 15.11.2026 nachts, Claude) – Backlog #79
+-- Entwurf 15.11.2026 (Claude), ausgeführt 24.11.2026 (Julian, Log logs/migrations/2026-11-24_ci79_coverage.txt) – Backlog #79
 -- indicator_coverage: numerische Jahres-Spalten first_year / last_year ergänzen.
 -- Grund: first_period/last_period sind MIN/MAX auf Text. Beispiel MADDISON:gdppc zeigt last_period '730' statt 2022,
 -- reine 'static'-Codes zeigen 'static'. Prüfung am Dump vom 14.11. 18:05 (lokal ausgewertet):
@@ -8,7 +8,9 @@
 -- Abhängigkeiten laut Dump: keine View liest indicator_coverage; Index idx_indicator_coverage,
 -- Kommentar und GRANT an ci_agent_readonly werden unten neu gesetzt.
 -- Aufruf (Shell, Repo-Wurzel):
---   psql -d country_intelligence -X -f sql/05_migrations/ENTWURF_2026-11-15_indicator_coverage_jahre.sql
+--   psql -d country_intelligence -X -f sql/05_migrations/2026-11-24_ci79_indicator_coverage_jahre.sql
+
+\set ON_ERROR_STOP on
 
 \echo '== vorher'
 SELECT COUNT(*) AS paare, SUM(n_values) AS werte FROM indicator_coverage;

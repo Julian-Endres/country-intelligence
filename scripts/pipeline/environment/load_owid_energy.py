@@ -51,7 +51,7 @@ cur = conn.cursor()
 # ─── Sources ─────────────────────────────────────────────────────────────────
 
 sources_data = {
-    "EMBER": ("Ember", "Ember – Yearly Electricity Data",
+    "EMBER": ("EMBER", "Ember – Yearly Electricity Data",
               "https://ember-climate.org/data/",
               "Global electricity generation data by source, updated annually."),
     "EI":    ("EI",   "Energy Institute – Statistical Review of World Energy",

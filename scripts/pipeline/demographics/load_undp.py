@@ -114,6 +114,7 @@ def main():
 
         iso_cache = {}
         total_saved = 0
+        skipped_nan = {}
 
         for _, row in df.iterrows():
             iso3 = str(row['countryIsoCode']).upper().strip()
@@ -126,6 +127,10 @@ def main():
             if pd.isna(row['year']):
                 continue
             year = str(int(float(row['year'])))
+            # #85 (24.11.2026): leere Werte nicht als NaN schreiben, aber zählen und am Ende melden
+            if pd.isna(row['value']):
+                skipped_nan[internal_code] = skipped_nan.get(internal_code, 0) + 1
+                continue
             val = float(row['value'])
 
             if iso3 not in iso_cache:
@@ -149,6 +154,8 @@ def main():
 
         conn.commit()
         print(f"Import abgeschlossen. {total_saved} Datenpunkte geladen.")
+        if skipped_nan:
+            print(f"Leere Werte (NaN) nicht geladen: {sum(skipped_nan.values())} – je Code: {skipped_nan}")
 
     except Exception as e:
         conn.rollback()

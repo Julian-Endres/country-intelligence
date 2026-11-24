@@ -1,8 +1,12 @@
 -- =============================================================================
--- Readiness-Check DB v1.0 (v3, 15.11.2026)
+-- Readiness-Check DB v1.0 (v4, 24.11.2026)
 -- Misst die sechs Prüfpunkte des Meilensteins "DB v1.0". Liest nur, ändert nichts
 -- (die Sitzung wird auf read only gesetzt).
 --
+--
+-- Änderungen v4 (24.11.): R3.3 von Pflicht auf Info. Entscheidung Julian: Taxonomie
+--         (Domain › Category › Dimension) ist ein Plattform-Thema, nicht Teil von v1.0.
+--         Pflicht sind damit 17 statt 18 Prüfungen.
 -- Änderungen v3 (15.11. abends): R4.2 zählt Codes ohne unit nur, wenn scale_type eine Einheit braucht.
 --         Bei index, ordinal, binary, categorical ist unit laut Metadaten-Regel v3 bewusst NULL
 --         (secretary.py); vorher stieg R4.2 mit jedem korrekten Metadaten-Lauf (POLITY5: +5).
@@ -181,9 +185,9 @@ pruefungen (punkt, id, pruefung, ist, soll, art) AS (
            (SELECT count(*) FROM (SELECT category FROM m WHERE category IS NOT NULL
                                   GROUP BY category HAVING count(DISTINCT domain) > 1) c), 0, 'Pflicht'
     UNION ALL
-    SELECT 3, 'R3.3', 'Dimensions, die in mehr als einer Category hängen',
+    SELECT 3, 'R3.3', 'Dimensions, die in mehr als einer Category hängen (Taxonomie, nicht v1.0)',
            (SELECT count(*) FROM (SELECT dimension FROM m WHERE dimension IS NOT NULL
-                                  GROUP BY dimension HAVING count(DISTINCT category) > 1) d), 0, 'Pflicht'
+                                  GROUP BY dimension HAVING count(DISTINCT category) > 1) d), NULL, 'Info'
     UNION ALL
     SELECT 3, 'R3.4', 'Code-Präfix passt nicht zum short_code der Quelle',
            (SELECT count(*) FROM indicator_metadata x JOIN sources s ON s.id = x.source_id
