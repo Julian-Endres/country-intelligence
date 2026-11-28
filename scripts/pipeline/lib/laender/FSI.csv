@@ -1,0 +1,8 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+Brunei Darussalam,Brunei Darussalam,BRN,zuordnen,,,,countries.name = Brunei
+Cabo Verde,Cabo Verde,CPV,zuordnen,,,,countries.name = Cape Verde
+Congo Democratic Republic,Congo Democratic Republic,COD,zuordnen,,,,DR Kongo
+Congo Republic,Congo Republic,COG,zuordnen,,,,Republik Kongo
+Côte d'Ivoire,Côte d'Ivoire,CIV,zuordnen,,,,countries.name = Ivory Coast
+Guinea Bissau,Guinea Bissau,GNB,zuordnen,,,,countries.name = Guinea-Bissau
+Swaziland,Swaziland,SWZ,zuordnen,,,,Alter Name von Eswatini (seit 2018); countries.name = Eswatini

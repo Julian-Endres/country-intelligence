@@ -1,0 +1,21 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+Cabo Verde,Cabo Verde,CPV,zuordnen,,,,countries.name = Cape Verde
+Congo (Brazzaville),Congo (Brazzaville),COG,zuordnen,,,,Hauptstadt Brazzaville = Republik Kongo
+Congo (Kinshasa),Congo (Kinshasa),COD,zuordnen,,,,Hauptstadt Kinshasa = DR Kongo
+Cote d'Ivoire,Cote d'Ivoire,CIV,zuordnen,,,,countries.name = Ivory Coast
+Czech Republic,Czech Republic,CZE,zuordnen,,,,FIW-Datei: Werte ab 1993 (nach Teilung der Tschechoslowakei); countries.name = Czechia
+The Gambia,The Gambia,GMB,zuordnen,,,,countries.name = Gambia
+St. Kitts and Nevis,St. Kitts and Nevis,KNA,zuordnen,,,,countries.name = Saint Kitts and Nevis
+St. Lucia,St. Lucia,LCA,zuordnen,,,,countries.name = Saint Lucia
+St. Vincent and the Grenadines,St. Vincent and the Grenadines,VCT,zuordnen,,,,countries.name = Saint Vincent and the Grenadines
+Kosovo,Kosovo,,verwerfen,Kosovo nicht in countries (kein ISO-Zahlcode); verwerfen bis Weg A (Entscheidung Julian 24.11. 4A),,,FIW-Datei: Werte 2009–2024; CI-172
+Czechoslovakia,Czechoslovakia,,verwerfen,Historische Einheit (bis 1992); nicht auf ein heutiges Land legen (P9 Quelle bestimmt die Einheit),,,FIW-Datei: Werte 1972–1992
+USSR,USSR,,verwerfen,Historische Einheit (bis 1990); nicht auf Russland legen (P9),,,FIW-Datei: Werte 1972–1990; Russia ab 1991 eigene Zeile
+Yugoslavia,Yugoslavia,,verwerfen,Historische Einheit (SFRJ bis 1991 und BR Jugoslawien 1992–2002); nicht auf Serbien legen (P9),,,FIW-Datei: Werte 1972–2002
+Serbia and Montenegro,Serbia and Montenegro,,verwerfen,Historische Einheit (2003–2005); nicht auf Serbien legen (P9),,,FIW-Datei: Werte 2003–2005; Serbia ab 2006 eigene Zeile
+"Germany, E.","Germany, E.",,verwerfen,Historische Einheit DDR (bis 1989); nicht auf Deutschland legen (P9),,,FIW-Datei: Werte 1972–1989
+"Germany, W.","Germany, W.",,verwerfen,Historische Einheit BRD (bis 1989); nicht auf Deutschland legen (P9),,,FIW-Datei: Werte 1972–1989; Germany ab 1990 eigene Zeile
+"Vietnam, N.","Vietnam, N.",,verwerfen,Historische Einheit Nordvietnam (bis 1975); nicht auf Vietnam legen (P9),,,FIW-Datei: Werte 1972–1975; Vietnam ab 1976 eigene Zeile
+"Vietnam, S.","Vietnam, S.",,verwerfen,Historische Einheit Südvietnam (bis 1975); nicht auf Vietnam legen (P9),,,FIW-Datei: Werte 1972–1975
+"Yemen, N.","Yemen, N.",,verwerfen,Historische Einheit Nordjemen (bis 1989); nicht auf Jemen legen (P9),,,FIW-Datei: Werte 1972–1989; Yemen ab 1990 eigene Zeile
+"Yemen, S.","Yemen, S.",,verwerfen,Historische Einheit Südjemen (bis 1989); nicht auf Jemen legen (P9),,,FIW-Datei: Werte 1972–1989

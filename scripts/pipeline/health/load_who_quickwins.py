@@ -1,3 +1,7 @@
+# CI-174 (25.11.2026): ersetzt durch scripts/pipeline/health/load_who.py (NCD_PAA und UHC_INDEX_REPORTED stehen dort
+# mit fester Auswahl je Code). Nicht mehr ausführen; Datei kann nach dem ersten erfolgreichen Lauf von load_who.py weg.
+raise SystemExit("CI-174: ersetzt durch scripts/pipeline/health/load_who.py")
+
 import requests
 import psycopg2
 import os

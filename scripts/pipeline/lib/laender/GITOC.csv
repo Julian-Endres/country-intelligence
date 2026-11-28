@@ -1,0 +1,18 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+Cabo Verde,Cabo Verde,CPV,zuordnen,,,,countries.name = Cape Verde
+"Congo, Dem. Rep.","Congo, Dem. Rep.",COD,zuordnen,,,,Weltbank-Schreibweise DR Kongo
+"Congo, Dem, Rep,","Congo, Dem, Rep,",COD,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)
+"Congo, Rep.","Congo, Rep.",COG,zuordnen,,,,Weltbank-Schreibweise Republik Kongo
+"Congo, Rep,","Congo, Rep,",COG,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)
+Czech Republic,Czech Republic,CZE,zuordnen,,,,countries.name = Czechia
+Côte d'Ivoire,Côte d'Ivoire,CIV,zuordnen,,,,countries.name = Ivory Coast
+"Korea, DPR","Korea, DPR",PRK,zuordnen,,,,Nordkorea (Demokratische Volksrepublik)
+"Korea, Rep.","Korea, Rep.",KOR,zuordnen,,,,Südkorea (Republik Korea)
+"Korea, Rep,","Korea, Rep,",KOR,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)
+Micronesia (Federated States of),Micronesia (Federated States of),FSM,zuordnen,,,,countries.name = Micronesia
+St. Kitts and Nevis,St. Kitts and Nevis,KNA,zuordnen,,,,countries.name = Saint Kitts and Nevis
+"St, Kitts and Nevis","St, Kitts and Nevis",KNA,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)
+St. Lucia,St. Lucia,LCA,zuordnen,,,,countries.name = Saint Lucia
+"St, Lucia","St, Lucia",LCA,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)
+St. Vincent and the Grenadines,St. Vincent and the Grenadines,VCT,zuordnen,,,,countries.name = Saint Vincent and the Grenadines
+"St, Vincent and the Grenadines","St, Vincent and the Grenadines",VCT,zuordnen,,,,Blatt 2023_dataset schreibt Kommas statt Punkte (#140)

@@ -1,9 +1,12 @@
 -- =============================================================================
--- Readiness-Check DB v1.0 (v4, 24.11.2026)
+-- Readiness-Check DB v1.0 (v5, 25.11.2026)
 -- Misst die sechs Prüfpunkte des Meilensteins "DB v1.0". Liest nur, ändert nichts
 -- (die Sitzung wird auf read only gesetzt).
 --
 --
+-- Änderungen v5 (25.11.): R2.8 Verwechslungspaare und R2.9 Länder-Lücken als Info (CI-181), Spuren
+--         von Fehlzuordnungen über alle Quellen ohne Rohdaten (aus ci172_verwechslungspaare.sql A+B und
+--         ci172_nachpruefung.sql Teil 5). Am Rohmaterial erklärte Fälle stehen im CTE "erklaert".
 -- Änderungen v4 (24.11.): R3.3 von Pflicht auf Info. Entscheidung Julian: Taxonomie
 --         (Domain › Category › Dimension) ist ein Plattform-Thema, nicht Teil von v1.0.
 --         Pflicht sind damit 17 statt 18 Prüfungen.
@@ -93,6 +96,47 @@ spruenge AS (
       AND b.laender BETWEEN a.laender / 2.0 AND a.laender * 2.0
       AND (b.median / a.median > 5 OR b.median / a.median < 0.2)
 ),
+paare (a, b, hinweis) AS (VALUES      -- R2.8: Paare, die Fehlzuordnungen typischerweise verwechseln
+    ('NER','NGA','Niger / Nigeria'), ('COG','COD','Kongo / DR Kongo'), ('PRK','KOR','Nord-/Südkorea'),
+    ('SDN','SSD','Sudan / Südsudan'), ('GIN','GNB','Guinea / Guinea-Bissau'), ('GIN','GNQ','Guinea / Äquatorialguinea'),
+    ('DMA','DOM','Dominica / Dominik. Rep.'), ('AUT','AUS','Österreich / Australien'), ('SVK','SVN','Slowakei / Slowenien'),
+    ('COL','CAN','Kolumbien / Kanada'), ('MNG','MNE','Mongolei / Montenegro'), ('IRN','IRQ','Iran / Irak'),
+    ('CHN','TWN','China / Taiwan'), ('MLI','SOM','Mali / Somalia (Somaliland)'), ('SRB','MNE','Serbien / Montenegro'),
+    ('CYP','TUR','Zypern / Türkei (Nordzypern)'), ('NIC','NER','Nicaragua / Niger')
+),
+ql AS (SELECT DISTINCT i.source_id, c.iso_code_3 FROM indicators i JOIN countries c USING (iso_numeric)),
+umfang AS (SELECT source_id, count(*) AS n FROM ql GROUP BY 1),
+gross AS (SELECT source_id FROM umfang WHERE n >= 150),
+verbreitung AS (SELECT q.iso_code_3, count(*)::numeric / (SELECT count(*) FROM gross) AS anteil
+                FROM ql q JOIN gross USING (source_id) GROUP BY 1),
+erklaert (short_code, iso_code_3, grund) AS (VALUES   -- am Rohmaterial geprüft (25.11.)
+    ('WHR','CPV','nicht in WHR26 Fig. 2.1'), ('WHR','SYC','nicht in WHR26 Fig. 2.1'),
+    ('WHR','PRK','nicht in WHR26 Fig. 2.1'), ('WHR','GNB','nicht in WHR26 Fig. 2.1'),
+    ('WHR','GNQ','nicht in WHR26 Fig. 2.1'), ('WHR','DMA','nicht in WHR26 Fig. 2.1')
+),
+r28_a AS (     -- nur ein Partner da; der fehlende steht in >= 90 % der großen Quellen
+    SELECT u.source_id, p.hinweis, CASE WHEN qa.source_id IS NULL THEN p.a ELSE p.b END AS fehlt
+    FROM umfang u CROSS JOIN paare p
+    LEFT JOIN ql qa ON qa.source_id = u.source_id AND qa.iso_code_3 = p.a
+    LEFT JOIN ql qb ON qb.source_id = u.source_id AND qb.iso_code_3 = p.b
+    WHERE u.n >= 100 AND (qa.source_id IS NULL) <> (qb.source_id IS NULL)
+),
+r28_b AS (     -- beide da, Werte im selben Code-Jahr zu >= 90 % gleich (mind. 10 Paare)
+    SELECT ia.source_id, p.hinweis
+    FROM paare p
+    JOIN countries ca ON ca.iso_code_3 = p.a
+    JOIN countries cb ON cb.iso_code_3 = p.b
+    JOIN indicators ia ON ia.iso_numeric = ca.iso_numeric
+    JOIN indicators ib ON ib.iso_numeric = cb.iso_numeric AND ib.source_id = ia.source_id
+                      AND ib.indicator_code = ia.indicator_code AND ib.time_period = ia.time_period
+    GROUP BY 1, 2
+    HAVING count(*) >= 10 AND sum((ia.value = ib.value)::int) >= 0.9 * count(*)
+),
+r29 AS (       -- weit verbreitetes Land fehlt in einer großen Quelle
+    SELECT g.source_id, v.iso_code_3
+    FROM gross g JOIN verbreitung v ON v.anteil >= 0.9
+    WHERE NOT EXISTS (SELECT 1 FROM ql WHERE ql.source_id = g.source_id AND ql.iso_code_3 = v.iso_code_3)
+),
 pruefungen (punkt, id, pruefung, ist, soll, art) AS (
     -- ---------- Prüfpunkt 1: keine bekannten Ladefehler (messbare Symptome) ----------
     SELECT 1, 'R1.1', 'Werte = NaN',
@@ -172,6 +216,18 @@ pruefungen (punkt, id, pruefung, ist, soll, art) AS (
                                WHERE x.source_id = s.id
                                  AND x.indicator_code IN (SELECT indicator_code FROM wert_codes))
                AND NOT EXISTS (SELECT 1 FROM relational_table_metadata r WHERE r.source_id = s.id)),
+           NULL, 'Info'
+    UNION ALL
+    SELECT 2, 'R2.8', 'Verwechslungspaare: ein Partner fehlt (sonst verbreitet) oder Werte ≥ 90 % gleich',
+           (SELECT count(*) FROM r28_a a JOIN verbreitung v ON v.iso_code_3 = a.fehlt AND v.anteil >= 0.9
+              JOIN sources s ON s.id = a.source_id
+             WHERE NOT EXISTS (SELECT 1 FROM erklaert e WHERE e.short_code = s.short_code AND e.iso_code_3 = a.fehlt))
+         + (SELECT count(*) FROM r28_b),
+           NULL, 'Info'
+    UNION ALL
+    SELECT 2, 'R2.9', 'Länder-Lücken: weit verbreitetes Land fehlt in einer großen Quelle (≥ 150 Länder)',
+           (SELECT count(*) FROM r29 r JOIN sources s ON s.id = r.source_id
+             WHERE NOT EXISTS (SELECT 1 FROM erklaert e WHERE e.short_code = s.short_code AND e.iso_code_3 = r.iso_code_3)),
            NULL, 'Info'
 
     -- ---------- Prüfpunkt 3: Struktur ist fest ----------
@@ -401,6 +457,43 @@ WHERE NOT EXISTS (SELECT 1 FROM indicator_metadata x
                     AND EXISTS (SELECT 1 FROM indicators i WHERE i.indicator_code = x.indicator_code))
   AND NOT EXISTS (SELECT 1 FROM relational_table_metadata r WHERE r.source_id = s.id)
 ORDER BY 2 LIMIT 40;
+
+\echo ''
+\echo '--- R2.8 Verwechslungspaare (Verdacht; je Treffer Rohdatei prüfen)'
+WITH paare (a, b, hinweis) AS (VALUES
+    ('NER','NGA','Niger / Nigeria'), ('COG','COD','Kongo / DR Kongo'), ('PRK','KOR','Nord-/Südkorea'),
+    ('SDN','SSD','Sudan / Südsudan'), ('GIN','GNB','Guinea / Guinea-Bissau'), ('GIN','GNQ','Guinea / Äquatorialguinea'),
+    ('DMA','DOM','Dominica / Dominik. Rep.'), ('AUT','AUS','Österreich / Australien'), ('SVK','SVN','Slowakei / Slowenien'),
+    ('COL','CAN','Kolumbien / Kanada'), ('MNG','MNE','Mongolei / Montenegro'), ('IRN','IRQ','Iran / Irak'),
+    ('CHN','TWN','China / Taiwan'), ('MLI','SOM','Mali / Somalia (Somaliland)'), ('SRB','MNE','Serbien / Montenegro'),
+    ('CYP','TUR','Zypern / Türkei (Nordzypern)'), ('NIC','NER','Nicaragua / Niger')),
+ql AS (SELECT DISTINCT i.source_id, c.iso_code_3 FROM indicators i JOIN countries c USING (iso_numeric)),
+umfang AS (SELECT source_id, count(*) AS n FROM ql GROUP BY 1),
+gross AS (SELECT source_id FROM umfang WHERE n >= 150),
+verbreitung AS (SELECT q.iso_code_3, count(*)::numeric / (SELECT count(*) FROM gross) AS anteil
+                FROM ql q JOIN gross USING (source_id) GROUP BY 1)
+SELECT s.short_code, u.n AS laender, p.hinweis,
+       CASE WHEN qa.source_id IS NULL THEN p.a ELSE p.b END AS fehlt,
+       round(v.anteil * 100) AS fehlt_sonst_in_proz
+FROM umfang u CROSS JOIN paare p
+JOIN sources s ON s.id = u.source_id
+LEFT JOIN ql qa ON qa.source_id = u.source_id AND qa.iso_code_3 = p.a
+LEFT JOIN ql qb ON qb.source_id = u.source_id AND qb.iso_code_3 = p.b
+JOIN verbreitung v ON v.iso_code_3 = CASE WHEN qa.source_id IS NULL THEN p.a ELSE p.b END
+WHERE u.n >= 100 AND (qa.source_id IS NULL) <> (qb.source_id IS NULL) AND v.anteil >= 0.9
+ORDER BY 1, 3 LIMIT 40;
+
+\echo ''
+\echo '--- R2.9 Länder-Lücken je Quelle (ohne Abzug der erklärten Fälle)'
+WITH ql AS (SELECT DISTINCT i.source_id, c.iso_code_3 FROM indicators i JOIN countries c USING (iso_numeric)),
+gross AS (SELECT source_id FROM ql GROUP BY 1 HAVING count(*) >= 150),
+verbreitung AS (SELECT q.iso_code_3, count(*)::numeric / (SELECT count(*) FROM gross) AS anteil
+                FROM ql q JOIN gross USING (source_id) GROUP BY 1)
+SELECT s.short_code, count(*) AS fehlen, string_agg(v.iso_code_3, ' ' ORDER BY v.iso_code_3) AS laender
+FROM gross g JOIN sources s ON s.id = g.source_id
+JOIN verbreitung v ON v.anteil >= 0.9
+WHERE NOT EXISTS (SELECT 1 FROM ql WHERE ql.source_id = g.source_id AND ql.iso_code_3 = v.iso_code_3)
+GROUP BY s.short_code ORDER BY fehlen DESC, 1 LIMIT 40;
 
 \echo ''
 \echo '--- R3.1 Leere Hierarchie je Quelle'

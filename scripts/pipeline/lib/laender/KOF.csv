@@ -1,0 +1,18 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+zar,Democratic Republic of the Congo,COD,zuordnen,,,,"Alter Code (Zaire); Schlüsseldatei kof_data_export_2026-05-28_22_07_53.xlsx"
+rom,Romania,ROU,zuordnen,,,,"Alter Code (vor 2002); Schlüsseldatei"
+tmp,Timor-Leste,TLS,zuordnen,,,,"Alter Code (East Timor); Schlüsseldatei"
+ado,Andorra,AND,zuordnen,,,,"Alter Code; Schlüsseldatei"
+wbg,West Bank and Gaza,PSE,zuordnen,,,,"Weltbank-Code; Schlüsseldatei; countries.name = Palestine"
+eas,East Asia,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+ecs,Europe and Central Asia,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+hic,High Income Countries,,verwerfen,Aggregat (Einkommensgruppe),,,Schlüsseldatei
+lcn,Latin America and Caribbean,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+lic,Low Income Countries,,verwerfen,Aggregat (Einkommensgruppe),,,Schlüsseldatei
+lmc,Lower Middle Income Countries,,verwerfen,Aggregat (Einkommensgruppe),,,Schlüsseldatei
+mea,Middle East and North Africa,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+nac,North America,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+sas,South Asia,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+ssf,Sub-Saharan Africa,,verwerfen,Aggregat (Region),,,Schlüsseldatei
+umc,Upper Middle Income Countries,,verwerfen,Aggregat (Einkommensgruppe),,,Schlüsseldatei
+wld,World,,verwerfen,Aggregat (Welt),,,Schlüsseldatei

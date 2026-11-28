@@ -4,7 +4,8 @@ Lädt alle neuen Quellen in einem Script.
 
 Quellen:
 - OWID CSVs (Bezugsweg OWID, Werte unter der Quelle des Urhebers): WHO Alkohol/Tabak/Drogen, UNODC Gefängnis/Mord,
-  SIPRI Militärausgaben. Stand 24.11.2026 (CI-171). FSI/GITOC-Teil unverändert, Neubau mit #151.
+  SIPRI Militärausgaben. Stand 24.11.2026 (CI-171). FSI/GITOC: seit 25.11.2026 eigene Loader
+  load_fsi.py und load_gitoc.py (CI-177); hier nicht mehr aufgerufen.
 - Fragile States Index (Excel)
 - World Bank Stability & Secrecy (Excel)
 - GI-TOC Global Organized Crime Index (Excel)
@@ -333,13 +334,10 @@ def main():
         print("\n=== OWID-Bezug (WHO, UNODC, SIPRI) ===")
         total_owid = load_owid_csvs(cur, conn, country_map_iso3)
 
-        print("\n=== Fragile States Index ===")
-        total_fsi = load_fsi(cur, conn, country_map_name)
-
-        print("\n=== GI-TOC Crime Index ===")
-        total_gitoc = load_gitoc(cur, conn, country_map_name)
-
-        grand_total = total_owid + total_fsi + total_gitoc
+        # FSI und GITOC laden seit 25.11.2026 eigene Loader (CI-177, #140, #151):
+        #   scripts/pipeline/governance/load_fsi.py und load_gitoc.py (Länder über lib/laender.py).
+        # Die Funktionen load_fsi/load_gitoc unten bleiben nur als Altbestand stehen und werden nicht mehr aufgerufen.
+        grand_total = total_owid
         print(f"\n{'='*50}")
         print(f"✅ GESAMT: {grand_total:,} Datenpunkte geladen")
 

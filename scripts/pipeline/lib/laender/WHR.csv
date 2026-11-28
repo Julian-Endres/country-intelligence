@@ -1,0 +1,16 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+Congo,Congo,COG,zuordnen,,,,WHR führt DR Congo als eigenen Namen; Congo = Republik Kongo. Der alte Teilstring-Abgleich legte Congo auf DR Kongo (CI-172)
+Côte d’Ivoire,Côte d’Ivoire,CIV,zuordnen,,,,countries.name = Ivory Coast
+Hong Kong SAR of China,Hong Kong SAR of China,HKG,zuordnen,,,,countries.name = Hong Kong
+Lao PDR,Lao PDR,LAO,zuordnen,,,,countries.name = Laos
+Republic of Korea,Republic of Korea,KOR,zuordnen,,,,countries.name = South Korea
+Republic of Moldova,Republic of Moldova,MDA,zuordnen,,,,countries.name = Moldova
+Russian Federation,Russian Federation,RUS,zuordnen,,,,countries.name = Russia
+State of Palestine,State of Palestine,PSE,zuordnen,,,,countries.name = Palestine
+Swaziland,Swaziland,SWZ,zuordnen,,,,Alter Name von Eswatini (seit 2018); countries.name = Eswatini
+Taiwan Province of China,Taiwan Province of China,TWN,zuordnen,,,,countries.name = Taiwan
+Türkiye,Türkiye,TUR,zuordnen,,,,countries.name = Turkey
+Viet Nam,Viet Nam,VNM,zuordnen,,,,countries.name = Vietnam
+Kosovo,Kosovo,,verwerfen,Kosovo nicht in countries (kein ISO-Zahlcode); verwerfen bis Weg A (Entscheidung Julian 24.11. 4A),,,CI-172
+North Cyprus,North Cyprus,,verwerfen,Nicht anerkanntes Gebiet ohne Zeile in countries; nicht auf Zypern legen (CI-172: Zypern 2014–2017 trug Nordzypern-Werte),,,WHR26 Fig. 2.1: Werte 2012–2021
+Somaliland Region,Somaliland Region,,verwerfen,Nicht anerkanntes Gebiet ohne Zeile in countries; nicht auf Somalia legen,,,WHR26 Fig. 2.1: Werte 2011–2015

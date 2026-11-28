@@ -1,0 +1,7 @@
+schluessel,name_quelle,iso3,aktion,grund,von,bis,beleg
+Congo,Congo,COG,zuordnen,,,,Datensatz führt DR Congo als eigenen Namen; Congo = Republik Kongo (countries.name Republic of the Congo)
+Czech Republic,Czech Republic,CZE,zuordnen,,,,countries.name = Czechia
+Macao,Macao,MAC,zuordnen,,,,countries.name = Macau
+Swaziland,Swaziland,SWZ,zuordnen,,,,Alter Name von Eswatini (seit 2018); countries.name = Eswatini
+Vatican,Vatican,VAT,zuordnen,,,,countries.name = Vatican City
+Kosovo,Kosovo,,verwerfen,Kosovo nicht in countries (kein ISO-Zahlcode); verwerfen bis Weg A (Entscheidung Julian 24.11. 4A),,,CI-172

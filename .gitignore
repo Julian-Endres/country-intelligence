@@ -18,6 +18,8 @@ Thumbs.db
 # Daten (zu groß für git)
 data/raw/
 *.csv
+# Ausnahme: Länderlisten gehören zum Code (CI-177)
+!scripts/pipeline/lib/laender/*.csv
 *.html
 
 # Backups, Lauf-Ausgaben, Logs
