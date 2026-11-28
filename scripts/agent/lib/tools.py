@@ -248,6 +248,143 @@ async def pdf_to_text(args: dict[str, Any]) -> dict[str, Any]:
     return _text(f"Erstellt: {txt} ({pages} Seiten, {n} Zeilen)")
 
 
+# Tabellen (xlsx/xls) als Text, gleiches Prinzip wie pdf_to_text (#154, 26.11.2026).
+# Jede Zeile trägt Blatt und Excel-Zeilennummer ("Notes!17: ..."), Zellen tabgetrennt, leere Zeilen entfallen.
+# Belege zitieren die Zeilennummer der Textdatei (wie bei PDFs); die Excel-Fundstelle steht im Zitat selbst.
+TABLE_TYPES = {".xlsx", ".xlsm", ".xls"}
+MAX_TABLE_ROWS_PER_SHEET = 300_000
+MAX_TABLE_CELL_CHARS = 1_000
+WIDE_SHEET_COLS = 200
+SHEET_MARK = "=== Blatt {name} ==="
+
+
+def table_text_path(table: Path) -> Path:
+    """Name des Text-Auszugs: <stem>_<endung>.txt (kein Zusammenstoß mit pdf_to_text bei gleichem Namen)."""
+    return REF_DIR / f"{table.stem}_{table.suffix.lower().lstrip('.')}.txt"
+
+
+def _cell(v: Any) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer() and abs(v) < 1e15:
+        v = int(v)
+    if isinstance(v, datetime):
+        v = v.date().isoformat() if (v.hour, v.minute, v.second) == (0, 0, 0) else v.isoformat()
+    t = re.sub(r"\s+", " ", str(v)).strip()
+    return t[:MAX_TABLE_CELL_CHARS] + " …[gekürzt]" if len(t) > MAX_TABLE_CELL_CHARS else t
+
+
+def _table_sheets(path: Path):
+    """Liefert (Blattname, Iterator über (Excel-Zeile, Werte)). Formeln: gespeicherter Wert (data_only)."""
+    if path.suffix.lower() == ".xls":
+        import xlrd
+        book = xlrd.open_workbook(str(path))
+        for sh in book.sheets():
+            def rows(sh=sh):
+                for r in range(sh.nrows):
+                    vals = []
+                    for c in range(sh.ncols):
+                        cell = sh.cell(r, c)
+                        if cell.ctype == xlrd.XL_CELL_DATE:
+                            vals.append(xlrd.xldate.xldate_as_datetime(cell.value, book.datemode))
+                        elif cell.ctype in (xlrd.XL_CELL_EMPTY, xlrd.XL_CELL_BLANK):
+                            vals.append(None)
+                        else:
+                            vals.append(cell.value)
+                    yield r + 1, vals
+            yield sh.name, rows()
+    else:
+        import openpyxl
+        # Zweimal öffnen: gespeicherte Werte (data_only) und Formeln. Fehlt zu einer Formel der gespeicherte Wert
+        # (Datei nie in Excel gespeichert), wird die Formel sichtbar markiert statt still leer ausgegeben.
+        book = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+        forms = openpyxl.load_workbook(str(path), read_only=True)
+        try:
+            for ws, wf in zip(book.worksheets, forms.worksheets):
+                def rows(ws=ws, wf=wf):
+                    for r, (vals, fvals) in enumerate(zip(ws.iter_rows(values_only=True),
+                                                          wf.iter_rows(values_only=True)), start=1):
+                        vals = list(vals)
+                        for i, (v, f) in enumerate(zip(vals, fvals)):
+                            if v is None and isinstance(f, str) and f.startswith("="):
+                                vals[i] = f"[Formel ohne gespeicherten Wert: {f}]"
+                        yield r, vals
+                yield ws.title, rows()
+        finally:
+            book.close()
+            forms.close()
+
+
+def table_to_text_file(path: Path) -> tuple[Path, list[str]]:
+    """Schreibt den Text-Auszug und gibt (Pfad, Meldungen) zurück. Fehler werden nicht geschluckt."""
+    REF_DIR.mkdir(parents=True, exist_ok=True)
+    txt = table_text_path(path)
+    tmp = txt.with_suffix(".txt.part")
+    notes: list[str] = []
+    with open(tmp, "w", encoding="utf-8") as out:
+        for name, rows in _table_sheets(path):
+            out.write(SHEET_MARK.format(name=name) + "\n")
+            n_rows, capped, max_cols, n_formula = 0, None, 0, 0
+            for r, vals in rows:
+                cells = [_cell(v) for v in vals]
+                while cells and cells[-1] == "":
+                    cells.pop()
+                if not cells:
+                    continue
+                max_cols = max(max_cols, len(cells))
+                n_formula += sum(c.startswith("[Formel ohne gespeicherten Wert") for c in cells)
+                if n_rows >= MAX_TABLE_ROWS_PER_SHEET:
+                    capped = r
+                    break
+                out.write(f"{name}!{r}: " + "\t".join(cells) + "\n")
+                n_rows += 1
+            if capped:
+                msg = (f"Blatt {name}: nach {MAX_TABLE_ROWS_PER_SHEET} Zeilen gekappt (ab Excel-Zeile {capped} fehlt alles)")
+                out.write(f"=== GEKAPPT: {msg} ===\n")
+                notes.append(msg)
+            elif n_rows == 0:
+                notes.append(f"Blatt {name}: leer")
+            else:
+                notes.append(f"Blatt {name}: {n_rows} Zeilen, bis {max_cols} Spalten")
+            if n_formula:
+                notes.append(f"Blatt {name}: {n_formula} Formelzellen ohne gespeicherten Wert (als Formel markiert)")
+            if max_cols > WIDE_SHEET_COLS:
+                notes.append(f"Blatt {name}: breit ({max_cols} Spalten) – Zeilen sehr lang, "
+                             f"gezielt mit search_text suchen, read_text nur mit num_lines=1")
+    tmp.rename(txt)
+    return txt, notes
+
+
+@tool(
+    "table_to_text",
+    "Wandelt eine Excel-Datei (xlsx, xls) in eine durchsuchbare Textdatei im Referenzordner um (einmalig, danach aus dem "
+    "Cache). Jedes Blatt beginnt mit '=== Blatt <Name> ==='; jede Zeile beginnt mit Blatt und Excel-Zeile, z. B. "
+    "'Notes!17: ...', Zellen sind tabgetrennt, leere Zeilen fehlen. Formeln erscheinen mit dem in der Datei gespeicherten "
+    "Wert. Danach mit search_text/read_text lesen. Pfad muss aus find_files oder download_file stammen.",
+    {"path": str},
+)
+async def table_to_text(args: dict[str, Any]) -> dict[str, Any]:
+    src = Path(args["path"]).expanduser()
+    if not src.is_absolute():
+        src = (REPO_ROOT / src).resolve()
+    if not any(_inside(src, r) for r in SEARCH_ROOTS) or not src.is_file():
+        return _text("FEHLER: Datei nicht gefunden oder außerhalb der erlaubten Ordner.")
+    if src.suffix.lower() not in TABLE_TYPES:
+        return _text(f"FEHLER: Nur {sorted(TABLE_TYPES)}. PDFs mit pdf_to_text, csv/txt direkt mit read_text.")
+    txt = table_text_path(src)
+    if txt.exists():
+        n = sum(1 for _ in open(txt, encoding="utf-8"))
+        return _text(f"Bereits vorhanden: {txt} ({n} Zeilen)")
+    try:
+        txt, notes = table_to_text_file(src)
+    except Exception as e:
+        _log(f"table_to_text FEHLER {src.name}: {type(e).__name__}: {e}")
+        return _text(f"FEHLER beim Lesen von {src.name}: {type(e).__name__}: {e}. Als Befund festhalten, nicht raten.")
+    n = sum(1 for _ in open(txt, encoding="utf-8"))
+    _log(f"table_to_text {src.name} -> {txt.name} ({n} Zeilen; " + "; ".join(notes) + ")")
+    return _text(f"Erstellt: {txt} ({n} Zeilen)\n" + "\n".join(notes))
+
+
 def _ref_file(name: str) -> Path | None:
     """Datei im Referenzordner (nur Name) oder voller Pfad aus find_files innerhalb der Suchordner."""
     given = Path(name).expanduser()
@@ -263,6 +400,18 @@ def _ref_file(name: str) -> Path | None:
     return p if p.exists() else None
 
 
+def _not_text(p: Path) -> str | None:
+    """Binärdateien nicht als Text lesen (sonst Binärmüll ohne Meldung, Fall POLITY5/#154)."""
+    suf = p.suffix.lower()
+    if suf in TABLE_TYPES:
+        return f"FEHLER: {p.name} ist eine Excel-Datei. Erst table_to_text ausführen, dann die erzeugte .txt lesen."
+    if suf == ".pdf":
+        return f"FEHLER: {p.name} ist ein PDF. Erst pdf_to_text ausführen, dann die erzeugte .txt lesen."
+    if suf in {".gz", ".zip", ".parquet", ".dta", ".sav", ".rds"}:
+        return f"FEHLER: {p.name} ({suf}) ist kein Text und mit den Werkzeugen nicht lesbar. Als Befund festhalten."
+    return None
+
+
 @tool(
     "search_text",
     "Durchsucht eine Textdatei (Name im Referenzordner oder voller Pfad aus find_files) nach einem Begriff oder regulären Ausdruck "
@@ -272,7 +421,9 @@ def _ref_file(name: str) -> Path | None:
 async def search_text(args: dict[str, Any]) -> dict[str, Any]:
     p = _ref_file(args["filename"])
     if not p:
-        return _text("FEHLER: Datei nicht im Referenzordner. Erst pdf_to_text ausführen.")
+        return _text("FEHLER: Datei nicht im Referenzordner. Erst pdf_to_text (PDF) bzw. table_to_text (xlsx/xls) ausführen.")
+    if (err := _not_text(p)):
+        return _text(err)
     try:
         rx = re.compile(args["pattern"], re.IGNORECASE)
     except re.error as e:
@@ -304,6 +455,8 @@ async def read_text(args: dict[str, Any]) -> dict[str, Any]:
     p = _ref_file(args["filename"])
     if not p:
         return _text("FEHLER: Datei nicht im Referenzordner.")
+    if (err := _not_text(p)):
+        return _text(err)
     start = max(1, int(args["start_line"]))
     n = min(MAX_READ_LINES, max(1, int(args["num_lines"])))
     with open(p, encoding="utf-8", errors="replace") as fh:
@@ -316,6 +469,8 @@ async def read_text(args: dict[str, Any]) -> dict[str, Any]:
 
 RESERVED_NAMES = {"protokoll.md", "pruefung.md", "pruefung.json", "status.json", "review.json",
                   "uebertragung.md", "rueckgaengig.sql"}
+# Kasten-Modus (26.11.2026): übernommene Dateien des alten Leitfaden-Laufs. Anhängen ja, ersetzen nein.
+PROTECTED_NAMES: set[str] = set()
 
 
 @tool(
@@ -360,6 +515,9 @@ async def replace_output(args: dict[str, Any]) -> dict[str, Any]:
         return _text("FEHLER: Nur .md oder .sql erlaubt.")
     if name.lower() in RESERVED_NAMES:
         return _text(f"FEHLER: {name} ist reserviert und wird automatisch erstellt.")
+    if name.lower() in PROTECTED_NAMES:
+        return _text(f"FEHLER: {name} ist aus dem alten Leitfaden-Lauf übernommen und wird nicht ersetzt. "
+                     "Ergänzungen mit write_output(append=true) anhängen.")
     target = RUN_DIR / name
     if not target.exists():
         return _text(f"FEHLER: {name} gibt es noch nicht. Mit write_output anlegen.")
@@ -370,7 +528,7 @@ async def replace_output(args: dict[str, Any]) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- Server
 
-ALL_TOOLS = [sql_query, find_files, download_file, pdf_to_text, search_text, read_text, write_output,
+ALL_TOOLS = [sql_query, find_files, download_file, pdf_to_text, table_to_text, search_text, read_text, write_output,
              replace_output]
 
 

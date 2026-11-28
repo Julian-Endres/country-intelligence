@@ -5,16 +5,20 @@ sondern legt Vorschläge und Explainer in scripts/agent/output/ ab.
 
 Aufruf aus der Repo-Wurzel (venv aktiv):
   python3 scripts/agent/secretary.py "Auftrag" --thema vdem [--budget 1.0] [--max-turns 80]
+  Kasten-Modus (26.11.2026): nur kasten.md zu einem vorhandenen Leitfaden schreiben
+  python3 scripts/agent/secretary.py "WB" --thema wb_kasten --kasten-aus 2026-11-10_1457_sekretaer_wb_leitfaden --budget 0.4
 
 Beispiel:
   python3 scripts/agent/secretary.py "VDEM: 10 Indikatoren nach Metadaten v3 beschreiben." --thema vdem --budget 1.5
 
 Ergebnis: Lauf-Ordner scripts/agent/output/<datum>_sekretaer_<thema>/ mit
-metadata.sql, befunde.md, ggf. leitfaden.md, protokoll.md und pruefung.md (Auto-Prüfung).
+metadata.sql, befunde.md, ggf. leitfaden.md + kasten.md, protokoll.md und pruefung.md (Auto-Prüfung).
 """
 
 import argparse
 import asyncio
+import re
+import shutil
 from datetime import datetime
 
 from claude_agent_sdk import (
@@ -50,6 +54,9 @@ WERKZEUGE FÜR QUELLENMATERIAL
    und mit download_file in den Referenzordner laden. Sinnvoller Dateiname, z. B. vdem_codebook_v15.pdf.
 3. pdf_to_text einmal ausführen, danach mit search_text gezielt suchen und mit read_text die Stelle lesen.
    Nie das ganze Dokument lesen, nur die Abschnitte zu den gesuchten Indikatoren.
+   Excel-Dateien (xlsx, xls) genauso mit table_to_text umwandeln: Die Textdatei heißt <name>_xlsx.txt bzw.
+   <name>_xls.txt, jede Zeile beginnt mit Blatt und Excel-Zeile (z. B. "Notes!17: ..."). Erst nach Blättern wie
+   Notes, Codebook, Legend, Definitions suchen; Datenblätter für die Länder-Stichprobe. Im Beleg die .txt nennen.
 4. APIs (z. B. Weltbank): Antwort mit download_file als .json in den Referenzordner speichern
    (z. B. https://api.worldbank.org/v2/indicator/NY.GDP.PCAP.CD?format=json -> wb_NY.GDP.PCAP.CD.json)
    und mit search_text/read_text wörtlich lesen. WebFetch kürzt und umschreibt Texte, deshalb nie als Beleg
@@ -139,7 +146,26 @@ B) Quellen-Leitfaden, Datei leitfaden.md (nur wenn der Auftrag danach fragt).
    11. Nächster Schritt: Rohdaten (wie die offizielle Datei aussieht, wie man sich einen kleinen Ausschnitt anschaut)
    12. Weiterlesen (offizielle Links)
    Dazu Datei leitfaden_belege.md: pro Abschnitt die Fundstellen (Dokument + Seite/Zeile oder URL), damit jede
-   Aussage prüfbar bleibt. Für Abschnitte 2, 3 und 9 offizielle Seiten der Quelle mit WebFetch lesen
+   Aussage prüfbar bleibt.
+   Dazu Datei kasten.md: die Kurzfassung, die in Notion oben auf der Datensatz-Seite steht. Genau eine Zeile
+   je Feld, Form "Feld: Text", ohne Überschrift. Pflicht: Was, Wer, Umfang, Art der Werte, Nutzung; optional
+   Vorsicht. Jede Zeile höchstens 2-3 kurze Sätze.
+     Was: was die Werte messen, in einem Satz (bei Codes, die erst unser Loader berechnet, das so sagen).
+     Wer: `<PRÄFIX>` · Urheber (nicht der Bezugsweg; kommt der Datensatz über OWID, QoG o. Ä., das dahinter
+          nennen) · [Kurzname](https://offizielle-URL)
+     Umfang: Quelle: <Länder, Zeitraum, Ausgabe laut Quelle> · Bei uns: <n> Codes, <n> Länder, <von–bis>,
+          <n> Werte *(Stand TT.MM.JJJJ)*. Die Bei-uns-Zahlen per sql_query in diesem Lauf: COUNT(DISTINCT
+          indicator_code), COUNT(DISTINCT iso_numeric), MIN/MAX(time_period), COUNT(*) aus indicators für
+          split_part(indicator_code, ':', 1) = Präfix. Tausender mit Punkt. Stand = heutiges Datum.
+     Art der Werte: Art der Erhebung (amtliche Statistik, Befragung, Experteneinschätzung, Modell, Zählung)
+          und was erst unser Loader rechnet.
+     Nutzung: Lizenz laut Quelle; nicht gefunden: "Lizenz nicht belegt".
+     Vorsicht: höchstens drei echte Fallstricke (Skalenrichtung, Zeitreihenbrüche, bekannte Datenfehler bei
+          uns aus befunde.md oder known_issues). Ohne echten Fallstrick die Zeile weglassen.
+   Der Kasten fasst nur zusammen: jede Aussage muss im Leitfaden, in befunde.md oder in einer Abfrage dieses
+   Laufs stehen. Nichts aus dem Gedächtnis (Sitz, Gründer, Lizenz, Abrufzeiträume). In leitfaden_belege.md
+   einen Abschnitt "## Kasten" anlegen, je Feld eine Zeile "- <Feld>: <Fundstelle>" (Abschnitt des
+   Leitfadens, Datei + Zeile, URL oder Nummer der Abfrage im Protokoll). Für Abschnitte 2, 3 und 9 offizielle Seiten der Quelle mit WebFetch lesen
    (About, Methodik, FAQ), Dokumente ggf. mit download_file holen.
 C) Befunde, Datei befunde.md: Auffälligkeiten, die nicht in A gehören, vor allem Datenprobleme.
    PFLICHT bei jeder Quelle: Länder-Stichprobe. Ländercodes sind die häufigste Fehlerquelle im Projekt
@@ -165,8 +191,48 @@ REGELN
 
 AGENT_TOOLS = T.ALL_TOOLS + [self_check]
 
+KASTEN_AUFTRAG = """KASTEN-MODUS. Der Quellen-Leitfaden ist fertig: leitfaden.md und leitfaden_belege.md liegen schon in
+deinem Lauf-Ordner (übernommen aus dem Lauf {quelle}; dessen Befunde als befunde_leitfaden.md, falls vorhanden).
+Pfade zum Lesen ab Repo-Wurzel: {rel}/leitfaden.md, {rel}/leitfaden_belege.md, {rel}/befunde_leitfaden.md.
+Schreibe KEINEN neuen Leitfaden, keine metadata.sql, und ändere leitfaden.md nicht.
+Aufgabe: kasten.md für das Präfix {praefix} nach Abschnitt B (Felder, Form, Länge) und den Abschnitt "## Kasten"
+mit write_output(filename="leitfaden_belege.md", append=true) anhängen (vorher eine Leerzeile).
+- Bei-uns-Zahlen per sql_query in diesem Lauf (Abfrage wie in Abschnitt B), Stand = heutiges Datum.
+- Was, Wer, Art der Werte, Nutzung aus dem Leitfaden (Abschnitte 1, 2, 4, 5, 12) und leitfaden_belege.md. Steht dort
+  keine Lizenz, höchstens ein WebFetch der offiziellen Lizenz- oder Nutzungsseite, deren Link der Leitfaden nennt;
+  sonst "Lizenz nicht belegt".
+- Vorsicht: aus befunde_leitfaden.md und known_issues (sql_query, source oder Präfix {praefix}). befunde_leitfaden.md
+  ist ALT (Datum des alten Laufs); seither wurden Daten korrigiert, Flags gesetzt und Loader erneuert. Jede Aussage
+  über den Zustand bei uns (obs_status, fehlende Länder/Jahre, Anzahlen, Ausreißer) prüfst du mit einer Abfrage in
+  diesem Lauf, z. B. obs_status je Code: SELECT indicator_code, obs_status, count(*) ... GROUP BY 1, 2. Kommt etwas
+  anderes heraus als im alten Befund, gilt die Abfrage: dann den heutigen Stand schreiben oder den Punkt weglassen.
+  Im Beleg die Nummer dieser Abfrage nennen.
+- Neue Auffälligkeiten aus deinen Abfragen in befunde.md (kurz), sonst keine befunde.md.
+Sparsam arbeiten: der Leitfaden ist die Quelle, kein neues Quellenstudium.
+Zusatz zum Auftrag: """
 
-async def main(task: str, thema: str, budget: float, max_turns: int, model: str | None = None) -> dict:
+
+def kasten_vorbereiten(run_dir, kasten_aus: str) -> str:
+    """Kasten-Modus: Leitfaden-Dateien aus dem alten Lauf übernehmen (alter Kasten-Abschnitt entfällt).
+    Gibt den Namen des Quell-Laufs zurück; fehlt etwas, Abbruch mit Meldung (nichts still schlucken)."""
+    src = runs.OUTPUT_ROOT / kasten_aus.rstrip("/").split("/")[-1]
+    for n in ("leitfaden.md", "leitfaden_belege.md"):
+        if not (src / n).exists():
+            raise SystemExit(f"Kasten-Modus: {src / n} fehlt – Abbruch.")
+    shutil.copy2(src / "leitfaden.md", run_dir / "leitfaden.md")
+    belege = (src / "leitfaden_belege.md").read_text(encoding="utf-8")
+    belege = re.sub(r"^## Kasten\s*$.*?(?=^## |\Z)", "", belege, flags=re.M | re.S).rstrip() + "\n"
+    (run_dir / "leitfaden_belege.md").write_text(belege, encoding="utf-8")
+    if (src / "befunde.md").exists():
+        shutil.copy2(src / "befunde.md", run_dir / "befunde_leitfaden.md")
+    T.PROTECTED_NAMES.clear()
+    T.PROTECTED_NAMES.update({"leitfaden.md", "leitfaden_belege.md", "befunde_leitfaden.md"})
+    runs.set_status(run_dir, "neu", f"Kasten-Modus: Leitfaden übernommen aus {src.name}")
+    return src.name
+
+
+async def main(task: str, thema: str, budget: float, max_turns: int, model: str | None = None,
+               kasten_aus: str | None = None, praefix: str | None = None) -> dict:
     builtin = ["WebSearch", "WebFetch"]
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
@@ -186,6 +252,11 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
     T.ACTION_LOG.clear()
     run_dir = runs.new_run("sekretaer", thema, auftrag=task, when=started)
     T.set_run_dir(run_dir)
+    T.PROTECTED_NAMES.clear()
+    if kasten_aus:
+        quelle = kasten_vorbereiten(run_dir, kasten_aus)
+        rel = run_dir.relative_to(runs.OUTPUT_ROOT.parent.parent.parent)
+        task = KASTEN_AUFTRAG.format(quelle=quelle, rel=rel, praefix=praefix or task.split()[0]) + task
     print(f"\nAuftrag: {task}\nLauf-Ordner: {run_dir}\nBudget: {budget} USD, max. {max_turns} Turns\n")
     summary, stats, result = "", "", {"subtype": "abgebrochen", "kosten": None}
     models: set[str] = set()     # welches Modell tatsächlich geantwortet hat (für Vergleiche)
@@ -233,14 +304,14 @@ async def main(task: str, thema: str, budget: float, max_turns: int, model: str 
     print(f"Protokoll: {log}")
 
     # Auto-Prüfung direkt im Anschluss
-    results = checks.run_check(run_dir)
-    if results:
-        for r in results:
+    results, kres = checks.run_check_all(run_dir)
+    if results or kres:
+        for r in results + ([kres] if kres else []):
             c = r["anzahl"]
             print(f"\nAuto-Prüfung {r['datei']}: ✅ {c['OK']} sauber · ⚠️ {c['ANSEHEN']} ansehen · ❌ {c['FEHLER']} fehlerhaft")
         print(f"Bericht: {run_dir / 'pruefung.md'}")
     else:
-        print("\nKeine Vorschlags-SQL in diesem Lauf, Auto-Prüfung entfällt.")
+        print("\nKeine Vorschlags-SQL und kein Leitfaden in diesem Lauf, Auto-Prüfung entfällt.")
     if result.get("subtype") != "success":
         # Status bleibt, wie er ist (Rettung per review/apply bleibt möglich), aber mit deutlicher Notiz (#141)
         runs.set_status(run_dir, (runs.read_status(run_dir) or {}).get("status", "neu"), f"ABGEBROCHEN ({result.get('subtype')}): {fehler or 'kein regulärer Abschluss'}. "
@@ -258,5 +329,7 @@ if __name__ == "__main__":
     ap.add_argument("--budget", type=float, default=1.0, help="Höchstbudget in USD (rechnerisch), Standard 1.0")
     ap.add_argument("--max-turns", type=int, default=80)
     ap.add_argument("--model", default="sonnet", help="Modell, Standard sonnet (Entscheidung 14.11., #126); z. B. opus")
+    ap.add_argument("--kasten-aus", default=None, help="Kasten-Modus: Lauf-Ordner (Name) mit fertigem Leitfaden")
+    ap.add_argument("--praefix", default=None, help="Kasten-Modus: Präfix, Standard erstes Wort des Auftrags")
     a = ap.parse_args()
-    asyncio.run(main(a.task, a.thema, a.budget, a.max_turns, a.model))
+    asyncio.run(main(a.task, a.thema, a.budget, a.max_turns, a.model, a.kasten_aus, a.praefix))

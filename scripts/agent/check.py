@@ -16,11 +16,11 @@ from lib import checks, runs
 
 def main(arg: str) -> None:
     run_dir = runs.resolve_run(arg)
-    results = checks.run_check(run_dir)
-    if not results:
-        print(f"Keine .sql-Datei in {run_dir.name}, nichts zu prüfen.")
+    results, kres = checks.run_check_all(run_dir)
+    if not results and not kres:
+        print(f"Keine .sql-Datei und kein Leitfaden in {run_dir.name}, nichts zu prüfen.")
         return
-    for r in results:
+    for r in results + ([kres] if kres else []):
         c = r["anzahl"]
         print(f"\n{r['datei']}: ✅ {c['OK']} sauber · ⚠️ {c['ANSEHEN']} ansehen · ❌ {c['FEHLER']} fehlerhaft")
         for g in r["global"]:

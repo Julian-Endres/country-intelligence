@@ -19,7 +19,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from . import runs, sqlfile, tools
+from . import kasten, runs, sqlfile, tools
 
 OK, WARN, FAIL = "OK", "ANSEHEN", "FEHLER"
 ICON = {OK: "✅", WARN: "⚠️", FAIL: "❌"}
@@ -145,12 +145,29 @@ def verify_beleg(m: re.Match, ref_cache: dict, what: str) -> tuple[str, list[str
     ref_path = tools._ref_file(given)
     if ref_path is None:
         return FAIL, [f"{what}: Referenzdatei {given} nicht gefunden"], info
-    ref = ref_cache.setdefault(str(ref_path), RefText(ref_path))
+    pre = []
+    suf = ref_path.suffix.lower()
+    if suf == ".pdf" or suf in tools.TABLE_TYPES:
+        # Zeilen und Seiten des Agenten stammen aus dem Text-Auszug (pdf_to_text: <name>.txt,
+        # table_to_text: <name>_<endung>.txt, beide im Referenzordner).
+        # Fall MADDISON 25.11.2026: PDF als Beleg genannt, Auto-Prüfung brach mit UnicodeDecodeError ab.
+        art, werkzeug = ("PDF", "pdf_to_text") if suf == ".pdf" else ("Excel-Datei", "table_to_text")
+        txt = tools.REF_DIR / (ref_path.stem + ".txt") if suf == ".pdf" else tools.table_text_path(ref_path)
+        if not txt.exists():
+            return FAIL, [f"{what}: Beleg nennt {art} {fname}, Text-Auszug {txt.name} fehlt (erst {werkzeug})"], info
+        pre.append(f"{what}: Beleg nennt {art} {fname}, geprüft gegen {txt.name} (im Beleg die .txt nennen)")
+        ref_path = txt
+    if str(ref_path) not in ref_cache:
+        try:
+            ref_cache[str(ref_path)] = RefText(ref_path)
+        except UnicodeDecodeError:
+            return FAIL, [f"{what}: Referenzdatei {ref_path.name} ist kein UTF-8-Text, nicht prüfbar"], info
+    ref = ref_cache[str(ref_path)]
     frags = _frags(quote)
     if not frags:
-        return WARN, [f"{what}: Zitat zu kurz für eine automatische Prüfung"], info
+        return WARN, pre + [f"{what}: Zitat zu kurz für eine automatische Prüfung"], info
     win = ref.window(min(nums) - 3, max(nums) + 3)
-    status, notes = OK, []
+    status, notes = (WARN, list(pre)) if pre else (OK, [])
     for f in frags:
         if f in win:
             continue
@@ -503,14 +520,23 @@ def write_report(run_dir: Path, results: list[dict]) -> Path:
     return out
 
 
-def run_check(run_dir: Path) -> list[dict]:
+def run_check_all(run_dir: Path) -> tuple[list[dict], dict | None]:
+    """SQL-Vorschläge prüfen und, bei Leitfaden-Läufen, kasten.md. Bericht für beides in pruefung.md.
+    Der Lauf-Status wird nur aus den SQL-Ergebnissen gesetzt (Leitfaden-Läufe behalten ihren Status)."""
     sql_files = sorted(run_dir.glob("*.sql"))
     results = [check_sql_file(p) for p in sql_files]
+    kres = kasten.check(run_dir)
+    if results or kres:
+        write_report(run_dir, results + ([kres] if kres else []))
     if results:
-        write_report(run_dir, results)
         total = {k: sum(r["anzahl"][k] for r in results) for k in (OK, WARN, FAIL)}
         has_global = any(r["global"] for r in results)
         runs.set_status(run_dir, "geprüft",
                         f"Auto-Prüfung: {total[OK]} OK, {total[WARN]} ansehen, {total[FAIL]} Fehler"
                         + (", Datei-Fehler" if has_global else ""))
-    return results
+    return results, kres
+
+
+def run_check(run_dir: Path) -> list[dict]:
+    """Wie bisher: nur die SQL-Ergebnisse (review.py, beschreibung.py und Helfer erwarten SQL-Blöcke)."""
+    return run_check_all(run_dir)[0]
