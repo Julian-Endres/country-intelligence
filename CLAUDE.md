@@ -46,7 +46,7 @@ PostgreSQL-Datenbank (`country_intelligence`), die Länderdaten aus über 50 int
 - **Kontext klein halten:** `/clear` zwischen unabhängigen Aufgaben, ein Thema je Session. Nur die nötigen Zeilen lesen (`head`, `grep`, `LIMIT`), keine ganzen Dumps oder Logs. Ein voller Notion-Seitenabruf kostet **8–15 Tsd. Token**, höchstens etwa 8 Seiten je Session. Lange Ausgaben in eine Datei, in den Chat nur die Auswertung.
 - **Vor teuren Schritten** (Sekretär-Serie, viele Notion-Seiten, große Rohdateien, Subagenten-Fächer) nennt Claude den Umfang als **Schätzung** und wartet auf Julians Ja.
 - **Verbrauchs-Check zu Beginn und am Ende jeder Session (Pflicht):**
-  - Claude kennt das Modell der eigenen Session (Systemangabe, sonst `/model` oder `/status`), **nicht aber den Verbrauch** und nicht, was in anderen Sessions oder in claude.ai lief. Deshalb fragt Claude zu Beginn und am Ende nach dem **Wochenstand aus `/usage`** (Julian liest ab).
+  - Claude kennt das Modell der eigenen Session (Systemangabe, sonst `/model` oder `/status`), **nicht aber den Verbrauch** und nicht, was in anderen Sessions oder in claude.ai lief. Deshalb fragt Claude zu Beginn und am Ende nach dem **Wochenstand** (Julian liest ab: in Claude Code mit `/usage`, in der Claude-App unter Einstellungen → Nutzung; beides zeigt dasselbe Kontingent).
   - Am Ende nennt Claude: **Modell(e) der Session**, **Wochenstand vorher → nachher**, den **teuersten Schritt** und **eine Empfehlung** für die nächste Session. Die Zeile „Verbrauch“ kommt in die Chat-Doku.
   - **Richtwert (Pilot):** Liegt der Wochenstand über dem Anteil der schon verstrichenen Woche bis zum Reset, empfiehlt Claude bis zum Reset nur Sonnet, keine Agenten-Serien und kürzere Sessions. Nach 2–3 Wochen Messung nachschärfen.
 

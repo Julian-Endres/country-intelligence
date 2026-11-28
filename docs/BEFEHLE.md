@@ -17,6 +17,7 @@
 - `psql -d country_intelligence` – Shell: interaktiv mit der DB verbinden; `\q` beendet.
 - `psql -d country_intelligence -X -c "SELECT count(*) FROM indicators;"` – Shell: eine Abfrage ohne interaktive Sitzung. `-X` lässt `~/.psqlrc` weg (wichtig in Skripten und Dateiausgaben).
 - `psql -d country_intelligence -X -f <datei>.sql > logs/<bereich>/<name>.txt 2>&1` – Shell: SQL-Datei ausführen, Ausgabe **und Fehler** (`2>&1`) in eine Datei.
+- `scripts/db_lesen.sh "SELECT …"` oder `scripts/db_lesen.sh -f <datei>.sql` – Shell: nur lesender Zugang als `ci_agent_readonly` (für Claude Code, CI-23). Lehnt Backslash-Befehle ab. Stand 28.11.: Ablehnungen mit Attrappe statt `psql` geprüft; Abfrage gegen die DB von Julian ausgeführt (`current_user` = `ci_agent_readonly`).
 - In psql: `\dt politics.*` (Tabellen eines Schemas), `\d indicators` (Spalten einer Tabelle), `\x` (breite Zeilen untereinander), `\pset pager off` (Pager aus; steht schon in `~/.psqlrc`).
 - `REFRESH MATERIALIZED VIEW indicator_coverage;` – psql: Abdeckungs-Übersicht nach jedem Laden neu berechnen.
 - **Readiness-Check v5** (nur lesend, Sitzung read only) – Shell:
