@@ -28,3 +28,8 @@ logs/
 
 # Lade-Zustand der Loader
 .comtrade_state*.json
+
+# Claude: Arbeitsdateien und private Ergänzung
+Claude outputs/
+CLAUDE.local.md
+kontext/

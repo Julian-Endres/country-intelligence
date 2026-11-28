@@ -6,7 +6,7 @@ A PostgreSQL database that brings country-level data from **59 registered intern
 
 Started in Cochabamba, Bolivia, during a sabbatical in 2026. Bolivia serves as a recurring analytical anchor, benchmarked against its South American neighbors.
 
-*All figures in this README: exact counts from the live database on 14 Nov 2026 (`sql/03_queries/2026-11-14_readme_kennzahlen.sql`).*
+*All figures in this README: exact counts from the live database on 28 Nov 2026 (`sql/03_queries/2026-11-14_readme_kennzahlen.sql`).*
 
 ---
 
@@ -77,9 +77,9 @@ flowchart TD
     countries["countries<br/>249 countries · key iso_numeric"]
     sources["sources<br/>59 sources · origin, licence"]
     meta["indicator_metadata<br/>725 codes · definition, unit, SIF level"]
-    ind["indicators<br/>4,138,872 values<br/>country × code × source × period"]
+    ind["indicators<br/>4,091,229 values<br/>country × code × source × period"]
     ki["known_issues<br/>accepted data facts"]
-    rel["18 relational tables<br/>6 schemas · 11,079,956 rows"]
+    rel["18 relational tables<br/>6 schemas · 11,079,948 rows"]
     rtm["relational_table_metadata<br/>describes 9 of 18"]
     cov["indicator_coverage<br/>materialized view"]
 
@@ -103,8 +103,8 @@ flowchart TD
 | `countries` | 249 | ISO codes, coordinates, region. PK `iso_numeric` (ISO 3166-1) |
 | `sources` | 59 | Publisher, licence, citation, loaded version, update frequency |
 | `indicator_metadata` | 725 | One row per indicator: name, unit, SIF level, definition, direction, scale, data origin, key facts (format v3) |
-| `indicators` | 4,138,872 | Values in long format (country × indicator × source × period), SDMX-inspired |
-| `known_issues` | 9 | Data facts that were checked and deliberately accepted |
+| `indicators` | 4,091,229 | Values in long format (country × indicator × source × period), SDMX-inspired |
+| `known_issues` | 38 | Data facts that were checked and deliberately accepted |
 | `relational_table_metadata` | 9 | Grain, join keys and loader of the relational tables |
 | `indicator_coverage` | view | Countries, periods and values per indicator. Refresh after every load: `REFRESH MATERIALIZED VIEW indicator_coverage;` |
 | `indicator_catalog` | 4,544 | Search list of WB/WHO indicators not yet loaded (snapshot May 2026). For loaded indicators use `indicator_metadata` |
@@ -116,9 +116,9 @@ flowchart TD
 | `trade` | `trade_products`, `trade_partners` | 9,443,845 | UN Comtrade, HS-4 product flows and bilateral partners, 2000–2025 (fully reloaded Nov 2026) |
 | `international` | `diplomatic_relations`, `diplomatic_representation`, `colonial_history` | 1,598,700 | DASID, DDR, COLDAT |
 | `politics` | 9 tables (UCDP conflicts, `conflict_context`, MARPOR elections and parties, constitutional events, coups) | 23,677 | UCDP, MARPOR, CCP, Cline Center |
-| `history` | `ethnic_groups` | 10,769 | EPR ethnic power relations 1946–2023 |
+| `history` | `ethnic_groups` | 10,763 | EPR ethnic power relations 1946–2023 |
 | `biodiversity` | `species_occurrences` | 2,490 | GBIF (experimental) |
-| `culture` | `country_facts`, `national_dishes` | 475 | Curated reference data |
+| `culture` | `country_facts`, `national_dishes` | 473 | Curated reference data |
 
 ### Indicator code convention
 
@@ -156,7 +156,7 @@ flowchart LR
 
 *Only two paths write to the database: the loaders and `apply.py`, started by a human after review.*
 
-**Status (14 Nov 2026):** 367 of 725 indicators are fully described and reviewed: World Bank 251/253, V-Dem 59/59, Penn World Table 21/21, UNDP 19/19, GI-TOC 17/17. Details: `scripts/agent/README.md`.
+**Status (28 Nov 2026):** 604 of 725 indicators are fully described and reviewed, across 33 sources (all of them complete except World Bank 251/253). Details: `scripts/agent/README.md`.
 
 ---
 
@@ -164,7 +164,7 @@ flowchart LR
 
 Open issues are tracked in a private backlog. The most important ones affecting the data:
 
-- **627,967 values in `indicators` have no `source_id`.** Without a source, the unique rule cannot catch duplicate rows.
+- Every value in `indicators` has a `source_id` (enforced with `NOT NULL` since 15 Nov 2026). Values from loaders with fuzzy country matching were quarantined or withdrawn on 24 Nov 2026 and are being reloaded through a central country mapping.
 - The relational tables are not yet linked to their source in `sources`, and the DDL of the relational schemas is not yet in the repo.
 - Several loaders still expect raw files in old locations (`docs/RAW_INVENTUR_2026-11.md`). New and reworked loaders follow `docs/PIPELINE_STANDARD.md`.
 
@@ -244,11 +244,11 @@ A full rebuild from the repo alone is not yet possible: the relational schemas h
 
 ## Status
 
-- ✅ 59 sources, 725 indicators across all 10 SIF domains, ~15.2M data points
+- ✅ 59 sources, 725 indicators across all 10 SIF domains, ~15.2M data points (15,171,177 rows)
 - ✅ Comtrade fully reloaded (Nov 2026): 2000–2023 with 165–180 reporting countries per year
-- ✅ Metadata format v3 and review workflow; 367 indicators described and reviewed
+- ✅ Metadata format v3 and review workflow; 604 indicators described and reviewed
 - ✅ Weekly automatic backup
 - ✅ Three domains documented in depth (Population, Economy, Politics), Bolivia vs. South America
-- ⏳ Clean-up: values without source, loader standard, raw data paths
+- ⏳ Clean-up towards milestone DB v1.0: central country mapping, loader standard, raw data paths
 - ⏳ Describe the remaining sources with the secretary agent
 - ⏳ Platform: API routes to blueprint level, dashboard, world map
